@@ -1,0 +1,2 @@
+cd ../
+python server.py

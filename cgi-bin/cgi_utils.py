@@ -21,3 +21,9 @@ def get_request_json():
 
 def get_path():
     return os.environ.get('PATH_INFO')
+
+
+def get_apikey():
+    if os.environ.get('API_KEY') is not None:
+        return os.environ.get('API_KEY')
+    return 'API_KEY'

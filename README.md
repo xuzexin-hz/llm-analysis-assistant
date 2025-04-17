@@ -28,14 +28,31 @@ pip install openai
 
 # 4、用法
 进入根目录，然后进入bin目录
-点击run-cgi.bat,就可以启动cgi服务
+点击run-server.bat,就可以启动cgi服务
 
 或者在跟目录直接运行:
 ```sh
-python -m http.server --cgi
+python server.py #(默认8000端口)
+
+也可以指定端口
+python server.py --port=8001
 ```
 
 启动后当请求该代理服务时，logs目录中会根据日期创建一个文件夹，里面就是详细的日志
+# 5、例子
+统一把openai的base_url改成该服务的地址：http://127.0.0.1:8000
+### a、 langchain chat模式
+### 先安装langchain:
+```sh
+pip install langchain langchain-openai
+```
+
+```sh
+from langchain.chat_models import init_chat_model
+model = init_chat_model("qwen2.5-coder:1.5b", model_provider="openai",base_url='http://127.0.0.1:8000',api_key='ollama')
+model.invoke("Hello, world!")
+```
+运行上面代码后请查看logs目录下的日志
 
 # License
 [Apache 2.0 License.](LICENSE)
