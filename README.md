@@ -15,7 +15,7 @@
 
 [开发环境常用:OLLAMA API](https://github.com/ollama/ollama/blob/main/docs/openai.md#supported-features)
 
-[生产环境常用:VLLM API](https://github.com/ollama/ollama/blob/main/docs/openai.md#supported-features)
+[生产环境常用:VLLM API](https://docs.vllm.ai/en/stable/api/inference_params.html#sampling-parameters)
 
 其他平台请自行查阅
 
