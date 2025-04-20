@@ -1,5 +1,6 @@
 # 1、项目功能(llm logs analysis)
-通过启动代理服务，我们可以轻松记录每次请求的参数和返回结果，从而便捷地分析客户端调用大模型的逻辑，实现对现象的理解和本质的透彻认识，做到知其然也知其所以然
+通过启动代理服务，我们可以轻松记录每次请求的参数和返回结果，从而便捷地分析客户端调用大模型的逻辑，实现对现象的理解和本质的透彻认识，做到知其然也知其所以然。
+切记本项目不是为了优化大模型或者大模型产品的
 
 # 2、项目背景
 在真正的AGI到来之前，我们必将经历一段漫长的旅程，期间需要不断面对挑战，无论是普通人还是专业人士，生活都将因此而改变。
@@ -32,16 +33,21 @@ pip install openai
 
 或者在跟目录直接运行:
 ```sh
-python server.py #(默认8000端口)
+#默认8000端口
+python server.py
 
-也可以指定端口
+#也可以指定端口
 python server.py --port=8001
+
+#也可以指定openai地址,默认是ollama的地址：http://127.0.0.1:11434/v1/
+python server.py --base_url=https://api.openai.com
+#若配置其他api地址，记得要填写准确的api_key,ollama默认是不需要api_key的
 ```
 
 启动后当请求该代理服务时，logs目录中会根据日期创建一个文件夹，里面就是详细的日志
 # 5、例子
 统一把openai的base_url改成该服务的地址：http://127.0.0.1:8000
-### a、 langchain chat模式
+### ⑴、例子1： langchain chat模式
 ### 先安装langchain:
 ```sh
 pip install langchain langchain-openai
@@ -52,7 +58,17 @@ from langchain.chat_models import init_chat_model
 model = init_chat_model("qwen2.5-coder:1.5b", model_provider="openai",base_url='http://127.0.0.1:8000',api_key='ollama')
 model.invoke("Hello, world!")
 ```
-运行上面代码后请查看logs目录下的日志
+##### 运行上面代码后，要想查看日志文件，可以进入logs目录对应天数文件夹中查看，每一个请求一个log文件
+##### 打开[http://127.0.0.1:8000/logs](http://127.0.0.1:8000/logs)可实时查看日志
+
+### ⑵、例子2： 分析Open WebUI
+[Open WebUI.md](docs/Open%20WebUI.md)
+
+### ⑶、例子3： 分析Cherry Studio
+[Cherry Studio.md](docs/Cherry%20Studio.md)
+
+### ④、例子4： 分析continue
+[continue.md](docs/continue.md)
 
 # License
 [Apache 2.0 License.](LICENSE)

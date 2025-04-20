@@ -1,103 +1,132 @@
+import json
+
 from openai import OpenAI
 
-import json
-import datetime
-import os
-
-import cgi_utils
+from utils import cgi_utils
+from utils.env_utils import get_envs
+from utils.logs_utils import get_num, write_httplog
+from utils.mock_utils import create_streamData
 
 
 def my_POST():
+    get_envs()
     api_key = cgi_utils.get_apikey()
+    base_url = cgi_utils.get_base_url()
     client = OpenAI(
-        base_url="http://127.0.0.1:11434/v1/",
+        base_url=base_url,
         api_key=api_key
     )
-    postJson = cgi_utils.get_request_json()
     url_path = cgi_utils.get_path()
-    model = postJson['model']
-    req_str = json.dumps(postJson)
-    start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-    day = datetime.datetime.now().strftime("%Y-%m-%d")
-    num = 1
-    folder_path = f"./logs/{day}"
-    num_path = f"./config/num"
-    start = False
-    if not os.path.exists(folder_path):
-        # 如果不存在，创建文件夹
-        os.makedirs(folder_path)
-        with open(f"{num_path}", "w") as file:
-            file.write(f"{num}")
-            start = True
-    if not os.path.exists(num_path):
-        with open(f"{num_path}", "w") as file:
-            file.write(f"{num}")
-            start = True
-    else:
-        if start is False:
-            with open(num_path, 'r') as file:
-                # 使用 strip() 去掉可能的换行符和空格
-                line = file.readline().strip()
-                # 将读取的内容转化为数字
-                num = int(line) + 1
-            with open(f"{num_path}", "w") as file:
-                file.write(f"{num}")
-    with open(f"{folder_path}/{num}.json", "a") as file:
-        file.write(f"\n{url_path}\n\n")
-        file.write(f"{start_time}, - {req_str}\n")
+    num = get_num()
+    write_httplog(url_path, num)
+    post_json = cgi_utils.get_request_json()
+    model = post_json['model']
+    stream = post_json.get('stream')
+    if stream is None:
+        stream = True
+    req_str = json.dumps(post_json, ensure_ascii=False)
+    write_httplog(req_str, num)
     obj_key = ''
     obj_value = ''
     completion = None
-    msg = ''
+    is_completions = False
     # 生成接口
-    if url_path == '/v1/completions' or url_path == '/api/completions':
-        prompt = postJson['prompt']
+    if '/v1/completions' in url_path or '/api/completions' in url_path or '/completions' == url_path:
+        is_completions = True
+        prompt = post_json['prompt']
         obj_key = 'text'
         completion = client.completions.create(
             model=model,
-            prompt=prompt
+            prompt=prompt,
+            stream=stream
         )
-        obj_value = completion.choices[0].text
-        msg = obj_value
+        if not stream:
+            obj_value = completion.choices[0].text
+    from utils.env_utils import is_mock
     # 聊天接口
-    if url_path == '/v1/chat/completions' or url_path == '/api/chat' or url_path == '/chat/completions':
-        messages = postJson['messages']
+    if '/v1/chat/completions' in url_path or '/api/chat' in url_path or '/chat/completions' in url_path:
+        messages = post_json['messages']
         obj_key = 'message'
-        completion = client.chat.completions.create(
-            model=model,
-            messages=messages
-        )
-        obj_value = {
-            "role": completion.choices[0].message.role,
-            "content": completion.choices[0].message.content
-        }
-        msg = obj_value['content']
-    print("Content-Type: application/json")
-    # 输出一个空行，表示头部结束
-    print()
-    payload = json.dumps({
-        "id": completion.id,
-        "object": completion.object,
-        "created": completion.created,
-        "model": completion.model,
-        "system_fingerprint": completion.system_fingerprint,
-        "choices": [
-            {
-                "index": completion.choices[0].index,
-                obj_key: obj_value,
-                "finish_reason": completion.choices[0].finish_reason
+        if stream and is_mock == True:
+            completion = None
+        else:
+            completion = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=stream
+            )
+        if not stream:
+            obj_value = {
+                "role": completion.choices[0].message.role,
+                "content": completion.choices[0].message.content
             }
-        ],
-        "usage": {
-            "prompt_tokens": completion.usage.prompt_tokens,
-            "completion_tokens": completion.usage.completion_tokens,
-            "total_tokens": completion.usage.total_tokens
-        }
-    })
-    end_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-    with open(f"{folder_path}/{num}.json", "a") as file:
-        file.write(f"\n{end_time}, - {payload}\n")
-    print(payload)
+    if not stream:
+        print("Content-Type: application/json")
+        # 输出一个空行，表示头部结束
+        print()
+        payload = json.dumps({
+            "id": completion.id,
+            "object": completion.object,
+            "created": completion.created,
+            "model": completion.model,
+            "system_fingerprint": completion.system_fingerprint,
+            "choices": [
+                {
+                    "index": completion.choices[0].index,
+                    obj_key: obj_value,
+                    "finish_reason": completion.choices[0].finish_reason
+                }
+            ],
+            "usage": {
+                "prompt_tokens": completion.usage.prompt_tokens,
+                "completion_tokens": completion.usage.completion_tokens,
+                "total_tokens": completion.usage.total_tokens
+            }
+        }, ensure_ascii=False)
+        write_httplog(payload + '\n\n----------end----------', num)
+        print(payload)
+    else:
+        cgi_utils.streamHeader()
+
+        def echoChunk():
+            # 迭代输出流
+            for chunk in completion:
+                if chunk.choices[0].finish_reason == 'stop':
+                    payload_chunk = '[DONE]'
+                else:
+                    if is_completions is False:
+                        k = "delta"
+                        v = {
+                            "role": chunk.choices[0].delta.role,
+                            "content": chunk.choices[0].delta.content
+                        }
+                    else:
+                        k = obj_key
+                        v = chunk.choices[0].text
+                    payload_chunk = json.dumps({
+                        "id": chunk.id,
+                        "object": chunk.object,
+                        "created": chunk.created,
+                        "model": chunk.model,
+                        "system_fingerprint": chunk.system_fingerprint,
+                        "choices": [
+                            {
+                                "index": chunk.choices[0].index,
+                                k: v,
+                                "finish_reason": chunk.choices[0].finish_reason
+                            }
+                        ]
+                    }, ensure_ascii=False)
+                # 不加ensure_ascii=False,有些客户端不会显示中文
+                data = 'data: ' + payload_chunk + '\n\n'
+                write_httplog(data, num)
+                print(data)
+
+        if is_mock:
+            create_streamData(num)
+        else:
+            echoChunk()
+        write_httplog('\n\n----------end----------', num)
 
 
 my_POST()
