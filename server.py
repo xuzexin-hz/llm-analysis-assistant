@@ -265,7 +265,7 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.0.2 - building the best open-source LLM logs analysis system.
+    v0.0.5 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
     """ + "\033[0m"

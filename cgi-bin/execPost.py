@@ -1,8 +1,13 @@
 import json
 
 from openai import OpenAI
+import os
+import sys
 
-from utils import cgi_utils
+# 获取根目录的绝对路径
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(root_dir)
+from utils.cgi_utils import get_path,streamHeader,get_apikey,get_base_url,get_request_json
 from utils.env_utils import get_envs
 from utils.logs_utils import get_num, write_httplog
 from utils.mock_utils import create_streamData
@@ -10,16 +15,16 @@ from utils.mock_utils import create_streamData
 
 def my_POST():
     get_envs()
-    api_key = cgi_utils.get_apikey()
-    base_url = cgi_utils.get_base_url()
+    api_key = get_apikey()
+    base_url = get_base_url()
     client = OpenAI(
         base_url=base_url,
         api_key=api_key
     )
-    url_path = cgi_utils.get_path()
+    url_path = get_path()
     num = get_num()
     write_httplog(url_path, num)
-    post_json = cgi_utils.get_request_json()
+    post_json = get_request_json()
     model = post_json['model']
     stream = post_json.get('stream')
     if stream is None:
@@ -86,9 +91,10 @@ def my_POST():
         write_httplog(payload + '\n\n----------end----------', num)
         print(payload)
     else:
-        cgi_utils.streamHeader()
+        streamHeader()
 
         def echoChunk():
+            all_msg = ''
             # 迭代输出流
             for chunk in completion:
                 if chunk.choices[0].finish_reason == 'stop':
@@ -100,9 +106,11 @@ def my_POST():
                             "role": chunk.choices[0].delta.role,
                             "content": chunk.choices[0].delta.content
                         }
+                        all_msg = all_msg + v['content']
                     else:
                         k = obj_key
                         v = chunk.choices[0].text
+                        all_msg = all_msg + v
                     payload_chunk = json.dumps({
                         "id": chunk.id,
                         "object": chunk.object,
@@ -121,6 +129,8 @@ def my_POST():
                 data = 'data: ' + payload_chunk + '\n\n'
                 write_httplog(data, num)
                 print(data)
+            if all_msg != '':
+                write_httplog(all_msg, num)
 
         if is_mock:
             create_streamData(num)

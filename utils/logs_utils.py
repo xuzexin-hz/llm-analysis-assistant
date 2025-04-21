@@ -81,7 +81,7 @@ def logs_stream_show():
                 line_num_this = line_num_this + 1
                 if line_num_this > line_num:
                     line_num = line_num + 1
-                    print(line + "<br>")
+                    print(str(line_num) + ': ' + line + "<br>")
                     if line == '----------end----------\n':
                         print("<br>")
                         file_end = True
@@ -97,10 +97,9 @@ def logs_stream_show():
                 print(log_file)
                 line_num = 0
                 file_end = False
-                start_time = time.time()
-                end_time = time.time()
+                wait_num = 0
                 while not file_end:
-                    if (end_time - start_time) > 7:
+                    if wait_num > 7:
                         break
                     line_num_old = line_num
                     file_end, line_num = scroll_one_file(log_file, file_end, line_num)
@@ -109,8 +108,8 @@ def logs_stream_show():
                     else:
                         # 单个文件未读取完，等待2秒，再继续读取
                         time.sleep(2)
-                        if line_num_old != line_num:
-                            end_time = time.time()
+                        if line_num_old == line_num:
+                            wait_num = wait_num + 1
         # 所有文件读完后，等待5秒
         time.sleep(5)
         logs_scroll_show(latest_time_input)
