@@ -4,10 +4,11 @@ import time
 from openai import OpenAI
 import os
 import sys
+
 # 获取根目录的绝对路径
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(root_dir)
-from utils.cgi_utils import get_path,get_favicon,streamHeader,get_apikey,get_base_url
+from utils.cgi_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url
 from utils.logs_utils import write_httplog, get_num, logs_stream_show
 
 
@@ -21,23 +22,22 @@ def my_GET():
         # 输出一个空行，表示头部结束
         print()
         get_favicon()
-    if url_path == '/':
+    elif url_path == '/':
         print("Content-Type: text/plain")
         # 输出一个空行，表示头部结束
         print()
         print('Hello AGI!')
 
-    if url_path == '/stream':
-        print("Content-Type: text/event-stream")
+    elif url_path == '/stream':
         streamHeader()
         for i in range(10):
             print(f"hello {i + 1}")
             time.sleep(1)  # 模拟长时间操作
-    if url_path == '/logs':
+    elif url_path == '/logs':
         print('Content-Type: text/html; charset=utf-8')
-        streamHeader()
+        print()
         logs_stream_show()
-    if '/v1/models' in url_path or '/models' in url_path:
+    elif '/v1/models' in url_path or '/models' in url_path:
         num = get_num()
         write_httplog(url_path, num)
         api_key = get_apikey()

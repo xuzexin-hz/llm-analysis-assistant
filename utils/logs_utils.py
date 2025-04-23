@@ -1,11 +1,11 @@
 import os
-import datetime
+from datetime import datetime
 import glob
 import time
 
 
 def get_folder_path():
-    day = datetime.datetime.now().strftime("%Y-%m-%d")
+    day = datetime.now().strftime("%Y-%m-%d")
     folder_path = f"./logs/{day}"
     if not os.path.exists(folder_path):
         # 如果不存在，创建文件夹
@@ -27,9 +27,25 @@ def app_init():
             file.write(f"{num}")
 
 
+def is_first_open():
+    config_path = f"./config/first_open"
+    if not os.path.exists(config_path):
+        with open(f"{config_path}", "w") as file:
+            file.write(f"{datetime.now().ctime()}")
+        return False
+    creation_time = os.path.getmtime(config_path)
+    creation_date = datetime.fromtimestamp(creation_time).date()
+    today_date = datetime.today().date()
+    if creation_date == today_date:
+        return True
+    with open(f"{config_path}", "w") as file:
+        file.write(f"{creation_time}")
+    return False
+
+
 def write_app_log(msg):
     path = f"./logs"
-    start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     with open(f"{path}/app.log", "a") as file:
         file.write(f"{start_time}, - {msg}")
 
@@ -48,7 +64,7 @@ def get_num():
 
 def write_httplog(msg, num):
     folder_path = get_folder_path()
-    start_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     with open(f"{folder_path}/{num}.log", "a") as file:
         file.write(f"\n{start_time}, - {msg}\n")
 
@@ -99,7 +115,7 @@ def logs_stream_show():
                 file_end = False
                 wait_num = 0
                 while not file_end:
-                    if wait_num > 7:
+                    if wait_num > 15:
                         break
                     line_num_old = line_num
                     file_end, line_num = scroll_one_file(log_file, file_end, line_num)

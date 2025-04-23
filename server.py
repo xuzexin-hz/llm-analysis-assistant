@@ -12,7 +12,7 @@ from socketserver import ThreadingMixIn
 
 import select
 
-from utils.logs_utils import app_init, write_app_log
+from utils.logs_utils import app_init, write_app_log, is_first_open
 
 # 定义一个信号量，最大并发线程数为 5
 MAX_CONCURRENT_THREADS = 5
@@ -180,7 +180,7 @@ class MyHandler(CGIHTTPRequestHandler):
             post_json = json.loads(data.decode('utf-8'))
             stream = post_json.get('stream')
             if stream is None:
-                stream = True
+                stream = False
         if not stream:
             stdout, stderr = p.communicate(data)
             self.wfile.write(stdout)
@@ -279,9 +279,10 @@ def run_server(port=8000):
     print(f"Starting server on port {port}...")
     print_logo()
     app_init()
-    import webbrowser
-    url = f"http://127.0.0.1:{port}"
-    webbrowser.open(url)
+    if not is_first_open():
+        import webbrowser
+        url = f"http://127.0.0.1:{port}"
+        webbrowser.open(url)
     httpd.serve_forever()
 
 

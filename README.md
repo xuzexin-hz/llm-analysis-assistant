@@ -1,6 +1,6 @@
 # 1、项目功能(llm logs analysis)
-通过启动代理服务，我们可以轻松记录每次请求的参数和返回结果，从而便捷地分析客户端调用大模型的逻辑，实现对现象的理解和本质的透彻认识，做到知其然也知其所以然。
-切记本项目不是为了优化大模型或者大模型产品的
+通过启用该代理服务，我们能够轻松记录每次和大模型交互的参数及其返回结果，从而便捷地分析客户端调用大模型的逻辑，实现对现象的理解和本质的透彻认识，做到知其然也知其所以然。
+本项目不是为了优化大模型的,但可以助你理解并实现PMF
 
 # 2、项目背景
 在真正的AGI到来之前，我们必将经历一段漫长的旅程，期间需要不断面对挑战，无论是普通人还是专业人士，生活都将因此而改变。
@@ -67,8 +67,11 @@ model.invoke("Hello, world!")
 ### ⑶、例子3： 分析Cherry Studio
 [Cherry Studio.md](docs/Cherry%20Studio.md)
 
-### ④、例子4： 分析continue
+### ⑷、例子4： 分析continue
 [continue.md](docs/continue.md)
+
+### ⑸、例子5： 分析Navicat
+[Navicat.md](docs/Navicat.md)
 
 # License
 [Apache 2.0 License.](LICENSE)

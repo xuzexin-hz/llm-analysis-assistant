@@ -4,10 +4,7 @@ import sys
 
 
 def get_request_body():
-    if os.environ.get("HTTP_REQUEST_BODY") is not None:
-        return os.environ["HTTP_REQUEST_BODY"]
-    else:
-        return "{}"
+    return os.environ.get("HTTP_REQUEST_BODY", "{}")
 
 
 def get_request_json():
@@ -19,9 +16,7 @@ def get_path():
 
 
 def get_apikey():
-    if os.environ.get('API_KEY') is not None:
-        return os.environ.get('API_KEY')
-    return 'API_KEY'
+    return os.environ.get('API_KEY', 'API_KEY')
 
 
 def streamHeader():
@@ -35,27 +30,13 @@ def streamHeader():
     This function is used to begin an SSE response, and is called before outputting
     any data in the stream.
     """
-    # if os.environ.get('HTTP_USER_AGENT') is not None and 'aiohttp' in os.environ.get('HTTP_USER_AGENT'):
-    # 上面判断是为了解决open webui的异常的bug，但是根据aiohttp太过武断
-    # 下面这种判断更加严谨，只需要open webui配置api地址为:http://127.0.0.1:8000/Open WebUI
-    if '/openwebui/' in os.environ.get('PATH_INFO').lower().replace(" ", ""):
-        # open webui 需要此头部
-        print("Content-Type: text/event-stream")
-        # 输出一个空行，表示头部结束
-        print()
-    else:
-        # 向客户端发送 HTTP 头
-        # 流式输出时候加表头就会错误，why？
-        # print('Content-Type: application/json')
-        # 输出一个空行，表示头部结束
-        print()
+    print("Content-Type: text/event-stream")
+    # 输出一个空行，表示头部结束
+    print()
 
 
 def get_base_url():
-    if os.environ.get("OPENAI_BASE_URL") is not None:
-        return os.environ.get("OPENAI_BASE_URL")
-    else:
-        return ""
+    return os.environ.get("OPENAI_BASE_URL", "")
 
 
 def get_favicon():
