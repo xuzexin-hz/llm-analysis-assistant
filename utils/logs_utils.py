@@ -5,11 +5,15 @@ import time
 
 
 def get_folder_path():
+    num = 0
+    num_path = f"./config/num"
     day = datetime.now().strftime("%Y-%m-%d")
     folder_path = f"./logs/{day}"
     if not os.path.exists(folder_path):
         # 如果不存在，创建文件夹
         os.makedirs(folder_path)
+        with open(f"{num_path}", "w") as file:
+            file.write(f"{num}")
     return folder_path
 
 
@@ -17,11 +21,6 @@ def app_init():
     num = 0
     num_path = f"./config/num"
     folder_path = get_folder_path()
-    if not os.path.exists(folder_path):
-        # 如果不存在，创建文件夹
-        os.makedirs(folder_path)
-        with open(f"{num_path}", "w") as file:
-            file.write(f"{num}")
     if not os.path.exists(num_path):
         with open(f"{num_path}", "w") as file:
             file.write(f"{num}")
