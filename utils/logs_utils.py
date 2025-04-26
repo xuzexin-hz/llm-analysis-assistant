@@ -100,7 +100,7 @@ def logs_stream_show():
                     if line == '----------end----------\n':
                         print("<br>")
                         file_end = True
-                    if ', - data:' not in line and line is not '\n':
+                    if ', - data:' not in line and line != '\n':
                         time.sleep(0.2)
         return file_end, line_num
 
