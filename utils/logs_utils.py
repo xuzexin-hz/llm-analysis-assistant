@@ -1,14 +1,18 @@
-import os
-from datetime import datetime
 import glob
+import os
 import time
+from datetime import datetime
+
+from utils.env_utils import get_base_path
+
+base_path = get_base_path()
 
 
 def get_folder_path():
     num = 0
-    num_path = f"./config/num"
+    num_path = f"{base_path}/config/num"
     day = datetime.now().strftime("%Y-%m-%d")
-    folder_path = f"./logs/{day}"
+    folder_path = f"{base_path}/logs/{day}"
     if not os.path.exists(folder_path):
         # 如果不存在，创建文件夹
         os.makedirs(folder_path)
@@ -19,15 +23,15 @@ def get_folder_path():
 
 def app_init():
     num = 0
-    num_path = f"./config/num"
     folder_path = get_folder_path()
+    num_path = f"{base_path}/config/num"
     if not os.path.exists(num_path):
         with open(f"{num_path}", "w") as file:
             file.write(f"{num}")
 
 
 def is_first_open():
-    config_path = f"./config/first_open"
+    config_path = f"{base_path}/config/first_open"
     if not os.path.exists(config_path):
         with open(f"{config_path}", "w") as file:
             file.write(f"{datetime.now().ctime()}")
@@ -43,14 +47,15 @@ def is_first_open():
 
 
 def write_app_log(msg):
-    path = f"./logs"
+    folder_path = get_folder_path()
+    path = f"{base_path}/logs"
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     with open(f"{path}/app.log", "a") as file:
-        file.write(f"{start_time}, - {msg}")
+        file.write(f"{start_time}, - {msg}\n")
 
 
 def get_num():
-    num_path = f"./config/num"
+    num_path = f"{base_path}/config/num"
     with open(num_path, 'r') as file:
         # 使用 strip() 去掉可能的换行符和空格
         line = file.readline().strip()
@@ -90,9 +95,9 @@ def logs_stream_show():
             return None, latest_time
 
     def scroll_one_file(log_file, file_end, line_num):
-        with open(log_file, 'r') as file:
+        with open(log_file, 'r') as onefile:
             line_num_this = 0
-            for line in file:
+            for line in onefile:
                 line_num_this = line_num_this + 1
                 if line_num_this > line_num:
                     line_num = line_num + 1
@@ -109,7 +114,7 @@ def logs_stream_show():
         if latest_time_this is not None:
             latest_time_input = latest_time_this
             for log_file in sorted_log_files:
-                print(log_file)
+                print(os.path.basename(log_file) + "<br>")
                 line_num = 0
                 file_end = False
                 wait_num = 0
@@ -130,8 +135,8 @@ def logs_stream_show():
         logs_scroll_show(latest_time_input)
 
     js = ''
-    with open('./cgi-bin/html/js/logs_scroll_show.js', 'r') as file:
-        js = file.readlines()
+    with open(f'{base_path}/cgi-bin/html/js/logs_scroll_show.js', 'r') as files:
+        js = files.readlines()
     print(f"<script>{''.join(js)}</script>")
     latest_time = None
     logs_scroll_show(latest_time)

@@ -12,6 +12,7 @@ from socketserver import ThreadingMixIn
 
 import select
 
+from utils.env_utils import get_base_path
 from utils.logs_utils import app_init, write_app_log, is_first_open
 
 # 定义一个信号量，最大并发线程数为 5
@@ -57,8 +58,8 @@ class MyHandler(CGIHTTPRequestHandler):
         else:
             script, rest = rest, ''
 
-        scriptname = dir + '/' + script
-        scriptfile = self.translate_path(scriptname)
+        scriptname = dir + '\\' + script
+        scriptfile = get_base_path() + "\\" + scriptname
         if not os.path.exists(scriptfile):
             self.send_error(
                 HTTPStatus.NOT_FOUND,
@@ -145,6 +146,9 @@ class MyHandler(CGIHTTPRequestHandler):
         cmdline = [scriptfile]
         if self.is_python(scriptfile):
             interp = sys.executable
+            if getattr(sys, 'frozen', False):
+              base_path = get_base_path()
+              interp = f"{base_path}/py3.11/python"
             if interp.lower().endswith("w.exe"):
                 # On Windows, use python.exe, not pythonw.exe
                 interp = interp[:-5] + interp[-4:]
@@ -213,9 +217,9 @@ class MyHandler(CGIHTTPRequestHandler):
 
     def is_cgi(self):
         if self.command == 'POST':
-            self.cgi_info = '/cgi-bin', 'execPost.py' + self.path
+            self.cgi_info = 'cgi-bin', 'execPost.py' + self.path
         else:
-            self.cgi_info = '/cgi-bin', 'execGET.py' + self.path
+            self.cgi_info = 'cgi-bin', 'execGET.py' + self.path
         return True
 
     def do_GET(self):
@@ -230,7 +234,7 @@ class MyHandler(CGIHTTPRequestHandler):
 
     def log_message(self, format, *args):
         message = format % args
-        msg = ("%s - - [%s] %s\n" %
+        msg = ("%s - - [%s] %s" %
                (self.address_string(),
                 self.log_date_time_string(),
                 message.translate(self._control_char_table)))
@@ -249,7 +253,7 @@ def set_apikey(self: MyHandler):
 
 def print_logo():
     """Prints a logo to the console."""
-    logo = "\033[97m" + """
+    logo = """
                                                                                                
       ,---,                  ,--,      ,--,                          ,---,          ,----..       ,---, 
     ,--.' |                ,--.'|    ,--.'|                         '  .' \        /   /   \   ,`--.' | 
@@ -265,10 +269,10 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.0.5 - building the best open-source LLM logs analysis system.
+    v0.0.6 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
-    """ + "\033[0m"
+    """
     print(logo)
 
 
