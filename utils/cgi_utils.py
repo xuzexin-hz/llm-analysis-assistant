@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+from utils.env_utils import get_base_path
+
 
 def get_request_body():
     return os.environ.get("HTTP_REQUEST_BODY", "{}")
@@ -40,7 +42,8 @@ def get_base_url():
 
 
 def get_favicon():
-    image_path = './cgi-bin/html/imgs/favicon.ico'
+    base_path = get_base_path()
+    image_path = f'{base_path}/cgi-bin/html/imgs/favicon.ico'
     if os.path.exists(image_path):
         # 打开并读取图片文件
         with open(image_path, 'rb') as image_file:
