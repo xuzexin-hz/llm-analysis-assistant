@@ -1,0 +1,1 @@
+pyinstaller --name=llm-logs-analysis --onefile --clean --upx-dir="D:\\ProgramFile\\upx-5.0.0-win64" --icon=cgi-bin/html/imgs/favicon.ico --add-data "bin;bin" --add-data "cgi-bin;cgi-bin" --add-data "config;config" --add-data "docs;docs" --add-data "utils;utils" --add-data ".gitignore;." --add-data "LICENSE;." --add-data "README.md;." --add-data "py3.11;py3.11" server.py
