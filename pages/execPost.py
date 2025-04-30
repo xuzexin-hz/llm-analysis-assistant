@@ -92,7 +92,7 @@ def my_POST():
             obj_value = get_one(completion.choices[0].message)
     if res_type == 1 or res_type == 2:
         if not stream:
-            my_printHeader("Content-Type", "application/json")
+            my_printHeader({"Content-Type": "application/json"})
             payload = json.dumps({
                 "id": completion.id,
                 "object": completion.object,
@@ -159,7 +159,7 @@ def my_POST():
                 echoChunk()
             write_httplog('\n\n----------end----------', num)
     elif res_type == 3:
-        my_printHeader("Content-Type", "application/json")
+        my_printHeader({"Content-Type": "application/json"})
         input = post_json['input']
         embeddings = client.embeddings.create(
             model=model,
