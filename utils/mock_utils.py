@@ -1,5 +1,6 @@
 import time
 
+from utils.environ_utils import my_printBody
 from utils.logs_utils import write_httplog
 
 
@@ -17,6 +18,6 @@ def create_streamData(num):
     for _ in range(3):
         # 遍历 completion 列表
         for chunk in completion:
-            print(chunk.decode('utf-8'))  # 根据需要解码并输出
+            my_printBody(chunk.decode('utf-8'))  # 根据需要解码并输出
             write_httplog(chunk, num)
             time.sleep(1)  # 模拟一个长时间运行的过程

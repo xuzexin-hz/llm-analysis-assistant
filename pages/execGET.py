@@ -2,40 +2,30 @@ import json
 import time
 
 from openai import OpenAI
-import os
-import sys
 
-# 获取根目录的绝对路径
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(root_dir)
-from utils.cgi_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url
+from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
+    my_printBody
 from utils.logs_utils import write_httplog, get_num, logs_stream_show
 
 
 def my_GET():
     url_path = get_path()
     if url_path == '/favicon.ico':
-        print("Content-Type: image/jpeg")
-        print("Cache-Control: no-store, no-cache, must-revalidate, max-age=0")
-        print("Pragma: no-cache")
-        print("Expires: 0")
-        # 输出一个空行，表示头部结束
-        print()
+        my_printHeader({"Content-Type": "image/jpeg",
+                        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                        "Pragma": "no-cache",
+                        "Expires": "0"})
         get_favicon()
     elif url_path == '/':
-        print("Content-Type: text/plain")
-        # 输出一个空行，表示头部结束
-        print()
-        print('Hello AGI!')
+        my_printHeader({"Content-Type": "text/plain"})
+        my_printBody('Hello AGI!')
 
     elif url_path == '/stream':
         streamHeader()
-        for i in range(10):
-            print(f"hello {i + 1}")
+        for i in range(35):
+            my_printBody(f"hello {i + 1}\n")
             time.sleep(1)  # 模拟长时间操作
     elif url_path == '/logs':
-        print('Content-Type: text/html; charset=utf-8')
-        print()
         logs_stream_show()
     elif '/v1/models' in url_path or '/models' in url_path:
         num = get_num()
@@ -56,15 +46,10 @@ def my_GET():
             }
             for model in completion.data
         ]
-        print("Content-Type: application/json")
-        # 输出一个空行，表示头部结束
-        print()
         payload = json.dumps({
             "object": completion.object,
             "data": model_list
         }, ensure_ascii=False)
         write_httplog(payload + '\n\n----------end----------', num)
-        print(payload)
-
-
-my_GET()
+        my_printHeader({"Content-Type": "application/json"})
+        my_printBody(payload)
