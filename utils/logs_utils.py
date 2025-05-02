@@ -3,7 +3,7 @@ import os
 import time
 from datetime import datetime
 
-from utils.env_utils import get_base_path
+from utils.environ_utils import my_printHeader, my_printBody, get_base_path
 
 base_path = get_base_path()
 
@@ -101,9 +101,9 @@ def logs_stream_show():
                 line_num_this = line_num_this + 1
                 if line_num_this > line_num:
                     line_num = line_num + 1
-                    print(str(line_num) + ': ' + line + "<br>")
+                    my_printBody(str(line_num) + ': ' + line + "<br>")
                     if line == '----------end----------\n':
-                        print("<br>")
+                        my_printBody("<br>")
                         file_end = True
                     if ', - data:' not in line and line != '\n':
                         time.sleep(0.2)
@@ -114,7 +114,7 @@ def logs_stream_show():
         if latest_time_this is not None:
             latest_time_input = latest_time_this
             for log_file in sorted_log_files:
-                print(os.path.basename(log_file) + "<br>")
+                my_printBody(os.path.basename(log_file) + "<br>")
                 line_num = 0
                 file_end = False
                 wait_num = 0
@@ -134,9 +134,10 @@ def logs_stream_show():
         time.sleep(5)
         logs_scroll_show(latest_time_input)
 
+    my_printHeader({"Content-Type": "text/html;charset=utf-8"})
     js = ''
-    with open(f'{base_path}/cgi-bin/html/js/logs_scroll_show.js', 'r') as files:
+    with open(f'{base_path}/pages/html/js/logs_scroll_show.js', 'r') as files:
         js = files.readlines()
-    print(f"<script>{''.join(js)}</script>")
+    my_printBody(f"<script>{''.join(js)}</script>")
     latest_time = None
     logs_scroll_show(latest_time)

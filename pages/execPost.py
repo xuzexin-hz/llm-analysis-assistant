@@ -1,20 +1,15 @@
 import json
 import os
-import sys
 
 from openai import OpenAI
 
-# 获取根目录的绝对路径
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(root_dir)
-from utils.cgi_utils import get_path, streamHeader, get_apikey, get_base_url, get_request_json
-from utils.env_utils import get_envs
+from utils.environ_utils import get_path, streamHeader, get_apikey, get_base_url, my_printHeader, my_printBody, \
+    get_request_json
 from utils.logs_utils import get_num, write_httplog
 from utils.mock_utils import create_streamData
 
 
 def my_POST():
-    get_envs()
     api_key = get_apikey()
     base_url = get_base_url()
     client = OpenAI(
@@ -55,7 +50,7 @@ def my_POST():
             v.setdefault('tool_calls', tool_calls)
         return v
 
-    from utils.env_utils import is_mock
+    is_mock = os.environ.get("IS_MOCK")
     res_type = None
     if '/v1/completions' in url_path:
         res_type = 1
@@ -97,9 +92,7 @@ def my_POST():
             obj_value = get_one(completion.choices[0].message)
     if res_type == 1 or res_type == 2:
         if not stream:
-            print("Content-Type: application/json")
-            # 输出一个空行，表示头部结束
-            print()
+            my_printHeader({"Content-Type": "application/json"})
             payload = json.dumps({
                 "id": completion.id,
                 "object": completion.object,
@@ -120,7 +113,7 @@ def my_POST():
                 }
             }, ensure_ascii=False)
             write_httplog(payload + '\n\n----------end----------', num)
-            print(payload)
+            my_printBody(payload)
         else:
             streamHeader()
 
@@ -156,19 +149,17 @@ def my_POST():
                     # 不加ensure_ascii=False,有些客户端不会显示中文
                     data = 'data: ' + payload_chunk + '\n\n'
                     write_httplog(data, num)
-                    print(data)
+                    my_printBody(data)
                 if all_msg != '':
                     write_httplog(all_msg, num)
 
-            if is_mock:
+            if is_mock == 'True':
                 create_streamData(num)
             else:
                 echoChunk()
             write_httplog('\n\n----------end----------', num)
     elif res_type == 3:
-        print("Content-Type: application/json")
-        # 输出一个空行，表示头部结束
-        print()
+        my_printHeader({"Content-Type": "application/json"})
         input = post_json['input']
         embeddings = client.embeddings.create(
             model=model,
@@ -190,7 +181,4 @@ def my_POST():
             }
         }, ensure_ascii=False)
         write_httplog(payload + '\n\n----------end----------', num)
-        print(payload)
-
-
-my_POST()
+        my_printBody(payload)

@@ -19,12 +19,14 @@
 
 其他平台请自行查阅
 
-### 本项目采用CGI模式提供API服务，以最小的依赖，快速而简洁地运行，致敬经典
+### 本项目采用python的BaseHTTPRequestHandler提供API服务，以最小的依赖，快速而简洁地运行，致敬经典
 
 # 3、安装所需扩展
 
 ```sh
+
 pip install openai
+
 ```
 
 # 4、用法
@@ -33,6 +35,7 @@ pip install openai
 
 或者在跟目录直接运行:
 ```sh
+
 #默认8000端口
 python server.py
 
@@ -42,36 +45,65 @@ python server.py --port=8001
 #也可以指定openai地址,默认是ollama的地址：http://127.0.0.1:11434/v1/
 python server.py --base_url=https://api.openai.com
 #若配置其他api地址，记得要填写准确的api_key,ollama默认是不需要api_key的
+
 ```
 
-启动后当请求该代理服务时，logs目录中会根据日期创建一个文件夹，里面就是详细的日志
-# 5、例子
+启动该服务后当请求到该服务时，logs目录中会根据日期创建一个文件夹，里面就是详细的日志
+# 5、例子集合
 统一把openai的base_url改成该服务的地址：http://127.0.0.1:8000
-### ⑴、例子1： langchain chat模式
+### ⑴、 分析langchain
 ### 先安装langchain:
 ```sh
+
 pip install langchain langchain-openai
+
 ```
 
 ```sh
+
 from langchain.chat_models import init_chat_model
 model = init_chat_model("qwen2.5-coder:1.5b", model_provider="openai",base_url='http://127.0.0.1:8000',api_key='ollama')
 model.invoke("Hello, world!")
+
 ```
 ##### 运行上面代码后，要想查看日志文件，可以进入logs目录对应天数文件夹中查看，每一个请求一个log文件
 ##### 打开[http://127.0.0.1:8000/logs](http://127.0.0.1:8000/logs)可实时查看日志
 
-### ⑵、例子2： 分析Open WebUI
+### ⑵分析工具集
+#### 1、工具Open WebUI
 [Open WebUI.md](docs/Open%20WebUI.md)
 
-### ⑶、例子3： 分析Cherry Studio
+#### 2、工具Cherry Studio
 [Cherry Studio.md](docs/Cherry%20Studio.md)
 
-### ⑷、例子4： 分析continue
+#### 3、工具continue
 [continue.md](docs/continue.md)
 
-### ⑸、例子5： 分析Navicat
+#### 4、工具Navicat
 [Navicat.md](docs/Navicat.md)
+
+### ⑶、 分析智能体
+#### 1、智能体 Multi-Agent Supervisor
+
+###### agent即节点，agent即工具，领导者模式
+
+![langgraph-supervisor1.png](docs/imgs/langgraph-supervisor1.png)
+
+[langgraph-supervisor.md](docs/langgraph-supervisor.md)
+
+#### 2、智能体 Multi-Agent Swarm
+###### 专业的事交给专业的人才可靠，团队合作模式
+
+![langgraph-swarm1.png](docs/imgs/langgraph-swarm1.png)
+
+[langgraph-swarm.md](docs/langgraph-swarm.md)
+
+####  3、智能体 codeact
+###### 尺有所短,寸有所长嘛(据说CodeAct在一些场景下准确性和效率会大幅提高)
+
+![langgraph-codeact1.png](docs/imgs/langgraph-codeact1.png)
+
+[langgraph-codeact.md](docs/langgraph-codeact.md)
 
 # License
 [Apache 2.0 License.](LICENSE)
