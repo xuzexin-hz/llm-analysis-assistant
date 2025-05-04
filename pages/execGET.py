@@ -1,10 +1,8 @@
-import json
 import time
-
-from openai import OpenAI
 
 from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
     my_printBody
+from utils.http_clientx import http_clientx
 from utils.logs_utils import write_httplog, get_num, logs_stream_show
 
 
@@ -32,24 +30,10 @@ def my_GET():
         write_httplog(url_path, num)
         api_key = get_apikey()
         base_url = get_base_url()
-        client = OpenAI(
-            base_url=base_url,
-            api_key=api_key
-        )
-        completion = client.models.list()
-        model_list = [
-            {
-                "id": model.id,
-                "object": model.object,
-                "created": model.created,
-                "owned_by": model.owned_by
-            }
-            for model in completion.data
-        ]
-        payload = json.dumps({
-            "object": completion.object,
-            "data": model_list
-        }, ensure_ascii=False)
+        headers = {'Authorization': f'Bearer {api_key}'}
+        client = http_clientx(base_url + '/v1/models')
+        response = client.http_get(headers=headers)
+        payload = response.text
         write_httplog(payload + '\n\n----------end----------', num)
         my_printHeader({"Content-Type": "application/json"})
         my_printBody(payload)

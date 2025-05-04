@@ -21,7 +21,10 @@ def get_base_path():
 
 def my_printBody(body: str):
     self = GlobalVal.myHandler()
-    self.wfile.write(body.encode('utf-8'))
+    try:
+        self.wfile.write(body.encode('utf-8'))
+    except (Exception):
+        pass
 
 
 def my_printHeader(data: Dict):

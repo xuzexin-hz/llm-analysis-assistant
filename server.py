@@ -29,7 +29,8 @@ class MyHandler(BaseHTTPRequestHandler):
     def finish(self):
         super().finish()
         thread_id = threading.get_ident()
-        del GlobalVal.myHandlerList[thread_id]
+        if GlobalVal.myHandlerList.get(thread_id):
+            del GlobalVal.myHandlerList[thread_id]
 
     def parse_request(self):
         ret = super().parse_request()
@@ -87,14 +88,26 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.0.7 - building the best open-source LLM logs analysis system.
+    v0.0.8 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
     """
     print(logo)
 
 
+def __is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.connect(('localhost', port))
+            return True
+        except ConnectionRefusedError:
+            return False
+
+
 def run_server(port=8000):
+    if __is_port_in_use(port):
+        print(f"Port {port} is already in use. Please choose a different port.")
+        return
     server_address = ('', port)
     # httpd = HTTPServer(server_address, MyHandler)
     httpd = ThreadedHTTPServer(server_address, MyHandler)
@@ -111,14 +124,14 @@ def run_server(port=8000):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='HTTP server.')
     parser.add_argument('-p', '--port', type=int, default=8000, help='Port number to listen on (default: 8000)')
-    parser.add_argument('-bu', '--base_url', type=str, default='http://127.0.0.1:11434/v1',
-                        help='The OpenAi base_url (default: http://127.0.0.1:11434/v1)')
+    parser.add_argument('-bu', '--base_url', type=str, default='http://127.0.0.1:11434',
+                        help='The OpenAi base_url (default: http://127.0.0.1:11434)')
     parser.add_argument('-mock', '--is_mock', type=str, default='False',
                         help='Control whether to enable the mock function for testing streaming output')
     args = parser.parse_args()
-    os.environ.setdefault("OPENAI_BASE_URL", args.base_url)
+    os.environ["OPENAI_BASE_URL"] = args.base_url
     if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
-        os.environ.setdefault("IS_MOCK", 'True')
+        os.environ["IS_MOCK"] = 'True'
     else:
-        os.environ.setdefault("IS_MOCK", 'False')
+        os.environ["IS_MOCK"] = 'False'
     run_server(args.port)
