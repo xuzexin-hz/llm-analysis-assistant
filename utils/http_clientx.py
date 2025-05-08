@@ -8,7 +8,9 @@ from urllib.parse import urlparse
 class http_clientx:
     IS_STREAM = False
     ITER_CHUNK_SIZE = 4096
-    RE_PATTERN = rb'data:\s*(\{.*?\})\s*\n\n'
+    # RE_PATTERN = rb'data:\s*(\{.*?\})\s*\n\n'
+    # 兼容ollama格式
+    RE_PATTERN = rb'(?:data:\s*)?(\{.*?\})\s*\n{1,2}'
 
     def __init__(self, url):
         self.url = url

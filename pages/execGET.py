@@ -25,13 +25,20 @@ def my_GET():
             time.sleep(1)  # 模拟长时间操作
     elif url_path == '/logs':
         logs_stream_show()
-    elif '/v1/models' in url_path or '/models' in url_path:
+    base_url = get_base_url()
+    http_url = None
+    if '/v1/models' in url_path or '/models' in url_path:
+        http_url = base_url + '/v1/models'
+    elif '/api/version' in url_path:
+        http_url = base_url + '/api/version'
+    elif '/api/tags' in url_path:
+        http_url = base_url + '/api/tags'
+    if http_url is not None:
         num = get_num()
         write_httplog(url_path, num)
         api_key = get_apikey()
-        base_url = get_base_url()
         headers = {'Authorization': f'Bearer {api_key}'}
-        client = http_clientx(base_url + '/v1/models')
+        client = http_clientx(http_url)
         response = client.http_get(headers=headers)
         payload = response.text
         write_httplog(payload + '\n\n----------end----------', num)

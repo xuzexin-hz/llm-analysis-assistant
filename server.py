@@ -118,7 +118,10 @@ def run_server(port=8000):
         import webbrowser
         url = f"http://127.0.0.1:{port}"
         webbrowser.open(url)
-    httpd.serve_forever()
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
 
 
 if __name__ == '__main__':

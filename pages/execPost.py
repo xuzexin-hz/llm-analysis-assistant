@@ -28,7 +28,7 @@ def my_POST():
     req_str = json.dumps(post_json, ensure_ascii=False)
     write_httplog(req_str, num)
 
-    is_mock = os.environ.get("IS_MOCK")
+    is_mock_str = os.environ.get("IS_MOCK")
     res_type = None
     if '/v1/completions' in url_path:
         res_type = 1
@@ -38,27 +38,44 @@ def my_POST():
         res_type = 1
     elif 'v1/embeddings' in url_path:
         res_type = 3
-
+    elif '/api/generate' in url_path:
+        res_type = 4
+    elif '/api/chat' in url_path:
+        res_type = 5
     headers = {'Authorization': f'Bearer {api_key}'}
     http_url = None
+    is_mock = False
+    if is_mock_str == 'True' and res_type in [1, 2]:
+        is_mock = True
+    if res_type in [4, 5]:
+        if stream is None:
+            stream = True
+            post_json['stream'] = True
     # 生成接口
     if res_type == 1:
         http_url = base_url + '/v1/completions'
     # 聊天接口
-    if res_type == 2:
+    elif res_type == 2:
         http_url = base_url + '/v1/chat/completions'
     # embedding接口
-    if res_type == 3:
+    elif res_type == 3:
         http_url = base_url + '/v1/embeddings'
-    # 模拟数据接口
-    if (not stream and is_mock == 'True' and res_type != 3) or (stream and is_mock == 'True'):
+    # ollama的生成接口
+    elif res_type == 4:
+        http_url = base_url + '/api/generate'
+    # ollama的聊天接口
+    elif res_type == 5:
+        http_url = base_url + '/api/chat'
+
+    # 模拟openai数据接口
+    if is_mock:
         pass
     else:
         client = http_clientx(http_url)
         response = client.http_post(headers=headers, data=post_json)
     if not stream:
-        my_printHeader({"Content-Type": "application/json"})
-        if is_mock == 'True' and res_type != 3:
+        my_printHeader({"Content-Type": "application/json; charset=utf-8"})
+        if is_mock:
             create_staticData(num, model, res_type)
         else:
             payload = response.text
@@ -72,9 +89,14 @@ def my_POST():
             # 迭代输出流
             for chunk in response:
                 data = chunk.decode()
-                data = data + '\n\n'
+                if res_type in [4, 5]:
+                    pre_data = ''
+                    data = data + '\n'
+                else:
+                    pre_data = 'data: '
+                    data = data + '\n\n'
                 write_httplog(data, num)
-                my_printBody('data: ' + data)
+                my_printBody(pre_data + data)
                 try:
                     v = json.loads(data)
                     if res_type == 1:
@@ -86,7 +108,7 @@ def my_POST():
             if all_msg != '':
                 write_httplog(all_msg, num)
 
-        if is_mock == 'True':
+        if is_mock:
             create_staticStream(num, model, res_type)
         else:
             echoChunk()
