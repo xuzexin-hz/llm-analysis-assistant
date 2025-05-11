@@ -25,7 +25,7 @@
 
 ```sh
 
-pip install openai
+pip install uvicorn
 
 ```
 
