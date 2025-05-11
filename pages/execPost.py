@@ -1,8 +1,6 @@
 import json
 import os
 
-from openai import OpenAI
-
 from utils.environ_utils import get_path, streamHeader, get_apikey, get_base_url, my_printHeader, my_printBody, \
     get_request_json
 from utils.http_clientx import http_clientx
@@ -13,15 +11,11 @@ from utils.mock_utils import create_staticStream, create_staticData
 def my_POST():
     api_key = get_apikey()
     base_url = get_base_url()
-    client = OpenAI(
-        base_url=base_url,
-        api_key=api_key
-    )
     url_path = get_path()
     num = get_num()
     write_httplog(url_path, num)
     post_json = get_request_json()
-    model = post_json['model']
+    model = post_json.get('model')
     stream = post_json.get('stream')
     if stream is None:
         stream = False
@@ -42,6 +36,10 @@ def my_POST():
         res_type = 4
     elif '/api/chat' in url_path:
         res_type = 5
+    elif '/api/show' in url_path:
+        res_type = 6
+    elif '/api/embed' in url_path:
+        res_type = 7
     headers = {'Authorization': f'Bearer {api_key}'}
     http_url = None
     is_mock = False
@@ -66,7 +64,10 @@ def my_POST():
     # ollama的聊天接口
     elif res_type == 5:
         http_url = base_url + '/api/chat'
-
+    elif res_type == 6:
+        http_url = base_url + '/api/show'
+    elif res_type == 7:
+        http_url = base_url + '/api/embed'
     # 模拟openai数据接口
     if is_mock:
         pass
@@ -103,6 +104,8 @@ def my_POST():
                         all_msg = all_msg + v['choices'][0]['text']
                     elif res_type == 2:
                         all_msg = all_msg + v['choices'][0]['delta']['content']
+                    elif res_type in [4, 5]:
+                        all_msg = all_msg + v['response']
                 except Exception as e:
                     pass
             if all_msg != '':

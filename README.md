@@ -24,7 +24,7 @@
 # 3、安装所需扩展
 
 ```sh
-pip install openai
+pip install uvicorn
 ```
 
 # 4、用法

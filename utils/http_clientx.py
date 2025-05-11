@@ -96,7 +96,7 @@ class http_clientx:
                         yield match
                 if b'data: [DONE]' in res_data:
                     res_data = b''
-                    # yield b'data: [DONE]'
+                    yield b'[DONE]'
 
     def __stream(self, data):
         if not hasattr(self, "response_headers"):
@@ -111,9 +111,6 @@ class http_clientx:
             # 解析分块
             chunks = []
             while body:
-                if b'data: [DONE]' in body:
-                    chunks.append(b'data: [DONE]')
-                    break
                 # 找到下一个分块长度
                 length_pos = body.find(b'\r\n')
                 if length_pos == -1:
