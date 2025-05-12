@@ -46,6 +46,15 @@ python server.py --port=8001
 python server.py --base_url=https://api.openai.com
 #若配置其他api地址，记得要填写准确的api_key,ollama默认是不需要api_key的
 
+#-mock true or --is_mock true 开启mock，可以返回模拟数据
+python server.py --is_mock true
+
+#--mock_string，可以自定义返回模拟数据，不设置此项就会返回默认mock数据
+python server.py --is_mock true --mock_string 你好啊
+
+#--mock_count，mock流式输出时返回数据的次数，默认3次
+python server.py --is_mock true --mock_string 你好啊 --mock_count 10
+
 ```
 
 启动该服务后当请求到该服务时，logs目录中会根据日期创建一个文件夹，里面就是详细的日志

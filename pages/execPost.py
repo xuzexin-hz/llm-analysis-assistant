@@ -43,7 +43,7 @@ def my_POST():
     headers = {'Authorization': f'Bearer {api_key}'}
     http_url = None
     is_mock = False
-    if is_mock_str == 'True' and res_type in [1, 2]:
+    if is_mock_str == 'True' and res_type in [1, 2, 4, 5]:
         is_mock = True
     if res_type in [4, 5]:
         if stream is None:

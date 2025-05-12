@@ -88,7 +88,7 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.0.8 - building the best open-source LLM logs analysis system.
+    v0.0.9 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
     """
@@ -131,10 +131,17 @@ if __name__ == '__main__':
                         help='The OpenAi base_url (default: http://127.0.0.1:11434)')
     parser.add_argument('-mock', '--is_mock', type=str, default='False',
                         help='Control whether to enable the mock function for testing streaming output')
+    parser.add_argument('-ms', '--mock_string', type=str, default=None,
+                        help='mock data of OpenAI and OLAM')
+    parser.add_argument('-msc', '--mock_count', type=int, default=3,
+                        help='mock data loop count')
     args = parser.parse_args()
     os.environ["OPENAI_BASE_URL"] = args.base_url
     if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
         os.environ["IS_MOCK"] = 'True'
     else:
         os.environ["IS_MOCK"] = 'False'
+    if args.mock_string is not None:
+        os.environ["mock_string"] = args.mock_string
+    os.environ["mock_count"] = str(args.mock_count)
     run_server(args.port)
