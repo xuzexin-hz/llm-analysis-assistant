@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import threading
 from typing import Dict
 
@@ -23,6 +22,14 @@ def my_printBody(body: str):
     self = GlobalVal.myHandler()
     try:
         self.wfile.write(body.encode('utf-8'))
+    except (Exception):
+        pass
+
+
+def my_printBodyBytes(body: bytes):
+    self = GlobalVal.myHandler()
+    try:
+        self.wfile.write(body)
     except (Exception):
         pass
 
@@ -73,8 +80,8 @@ def get_base_url():
 
 def get_favicon():
     base_path = get_base_path()
-    image_path = f'{base_path}/cgi-bin/html/imgs/favicon.ico'
+    image_path = f'{base_path}/pages/html/imgs/favicon.ico'
     if os.path.exists(image_path):
         # 打开并读取图片文件
         with open(image_path, 'rb') as image_file:
-            sys.stdout.buffer.write(image_file.read())
+            my_printBodyBytes(image_file.read())

@@ -9,14 +9,18 @@ from utils.logs_utils import write_httplog, get_num, logs_stream_show
 def my_GET():
     url_path = get_path()
     if url_path == '/favicon.ico':
-        my_printHeader({"Content-Type": "image/jpeg",
+        my_printHeader({"Content-Type": "image/x-icon",
                         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
                         "Pragma": "no-cache",
                         "Expires": "0"})
         get_favicon()
     elif url_path == '/':
-        my_printHeader({"Content-Type": "text/plain"})
-        my_printBody('Hello AGI!')
+        streamHeader()
+        str = 'Hello AGI!'
+        str_length = len(str)
+        for i in range(str_length):
+            my_printBody(str[i])
+            time.sleep(0.35)
 
     elif url_path == '/stream':
         streamHeader()
