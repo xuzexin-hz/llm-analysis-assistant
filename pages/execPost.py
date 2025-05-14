@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 
@@ -8,7 +9,7 @@ from utils.logs_utils import get_num, write_httplog
 from utils.mock_utils import create_staticStream, create_staticData
 
 
-def my_POST():
+async def my_POST():
     api_key = get_apikey()
     base_url = get_base_url()
     url_path = get_path()
@@ -75,17 +76,17 @@ def my_POST():
         client = http_clientx(http_url)
         response = client.http_post(headers=headers, data=post_json)
     if not stream:
-        my_printHeader({"Content-Type": "application/json; charset=utf-8"})
+        await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         if is_mock:
-            create_staticData(num, model, res_type)
+            await create_staticData(num, model, res_type)
         else:
             payload = response.text
-            my_printBody(payload)
+            await my_printBody(payload, True)
             write_httplog(payload + '\n\n----------end----------', num)
     else:
-        streamHeader()
+        await streamHeader()
 
-        def echoChunk():
+        async def echoChunk():
             all_msg = ''
             # 迭代输出流
             for chunk in response:
@@ -97,7 +98,9 @@ def my_POST():
                     pre_data = 'data: '
                     data = data + '\n\n'
                 write_httplog(data, num)
-                my_printBody(pre_data + data)
+                await my_printBody(pre_data + data)
+                # why?
+                await asyncio.sleep(0)
                 try:
                     v = json.loads(data)
                     if res_type == 1:
@@ -108,11 +111,12 @@ def my_POST():
                         all_msg = all_msg + v['response']
                 except Exception as e:
                     pass
+            await my_printBody('', True)
             if all_msg != '':
                 write_httplog(all_msg, num)
 
         if is_mock:
-            create_staticStream(num, model, res_type)
+            await create_staticStream(num, model, res_type)
         else:
-            echoChunk()
+            await echoChunk()
         write_httplog('\n\n----------end----------', num)

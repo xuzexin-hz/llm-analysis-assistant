@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -6,7 +7,7 @@ from utils.environ_utils import my_printBody
 from utils.logs_utils import write_httplog
 
 
-def create_staticData(num, model, res_type):
+async def create_staticData(num, model, res_type):
     content = '我是一个AI助手，属于llm-logs-analysis。'
     if os.environ.get('mock_string') is not None:
         content = os.environ.get('mock_string')
@@ -40,11 +41,13 @@ def create_staticData(num, model, res_type):
     for _ in range(1):
         # 遍历 completion 列表
         for chunk in completion:
-            my_printBody(chunk)
+            await my_printBody(chunk)
             write_httplog(chunk, num)
 
+    await my_printBody('', True)
 
-def create_staticStream(num, model, res_type):
+
+async def create_staticStream(num, model, res_type):
     my_time = int(time.time())
     utc_time = datetime.fromtimestamp(my_time, tz=timezone.utc)
     beijing_timezone = timezone(timedelta(hours=8))
@@ -90,9 +93,11 @@ def create_staticStream(num, model, res_type):
     for _ in range(int(os.environ.get("mock_count"))):
         # 遍历 completion 列表
         for chunk in completion:
-            my_printBody(chunk)
+            await my_printBody(chunk)
             write_httplog(chunk, num)
-            time.sleep(1)  # 模拟一个长时间运行的过程
+            await asyncio.sleep(1)  # 模拟一个长时间运行的过程
+
+    await my_printBody('', True)
 
 
 def __split_string(s):
