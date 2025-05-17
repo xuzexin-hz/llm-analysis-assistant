@@ -1,11 +1,27 @@
 import asyncio
 import glob
+import json
 import os
 from datetime import datetime
+from enum import Enum
 
-from utils.environ_utils import my_printHeader, my_printBody, get_base_path
+from utils.environ_utils import my_printHeader, my_printBody, get_base_path, my_printBodyWS
 
 base_path = get_base_path()
+LOG_END_SYMBOL = '----------end----------'
+
+
+class LogType(Enum):
+    GET = 1  # 请求url
+    POST = 1  # 请求url
+    REQ = 2  # post请求参数
+    RES = 3  # 返回参数
+    REC = 4  # 流式输出
+    REM = 5  # 流式输出结果
+    END = 6  # 输出结束
+
+    def __str__(self):
+        return self.name.lower()
 
 
 def get_folder_path():
@@ -46,14 +62,6 @@ def is_first_open():
     return False
 
 
-def write_app_log(msg):
-    folder_path = get_folder_path()
-    path = f"{base_path}/logs"
-    start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-    with open(f"{path}/app.log", "a") as file:
-        file.write(f"{start_time}, - {msg}\n")
-
-
 def get_num():
     num_path = f"{base_path}/config/num"
     with open(num_path, 'r') as file:
@@ -66,11 +74,19 @@ def get_num():
     return num
 
 
-def write_httplog(msg, num):
+def write_httplog(enum: LogType, msg, num):
     folder_path = get_folder_path()
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+    if enum != LogType.END:
+        log = {
+            'asctime': start_time,
+            'level': 'INFO',
+            'type': str(enum),
+            'data': {'data': msg},
+        }
+        msg = json.dumps(log)
     with open(f"{folder_path}/{num}.log", "a") as file:
-        file.write(f"\n{start_time}, - {msg}\n")
+        file.write(f"\n{msg}\n")
 
 
 async def logs_stream_show():
@@ -87,12 +103,17 @@ async def logs_stream_show():
                 if os.path.getctime(log_file) > latest_time_input
             ]
         sorted_log_files = sorted(log_files_with_times, key=lambda x: x[1])
-        latest_time_out = None
         if len(sorted_log_files) > 0:
             latest_time_out = max(log_files_with_times, key=lambda x: x[1])[1]
             return [log_file[0] for log_file in sorted_log_files], latest_time_out
         else:
             return None, latest_time
+
+    def is_valid_json(string):
+        try:
+            return json.loads(string)
+        except ValueError:
+            return False
 
     async def scroll_one_file(log_file, file_end, line_num):
         with open(log_file, 'r') as onefile:
@@ -101,9 +122,17 @@ async def logs_stream_show():
                 line_num_this = line_num_this + 1
                 if line_num_this > line_num:
                     line_num = line_num + 1
-                    await my_printBody(str(line_num) + ': ' + line + "<br>")
-                    if line == '----------end----------\n':
-                        await my_printBody("<br>")
+                    jj = is_valid_json(line)
+                    if jj:
+                        jj['line_num'] = line_num;
+                        await my_printBodyWS(json.dumps(jj))
+                    else:
+                        if line == '\n':
+                            await my_printBodyWS(line + "<br>")
+                        else:
+                            await my_printBodyWS(str(line_num) + ': ' + line + "<br>")
+                    if line == LOG_END_SYMBOL + '\n':
+                        await my_printBodyWS("<br>")
                         file_end = True
                     if ', - data:' not in line and line != '\n':
                         await asyncio.sleep(0.2)
@@ -114,7 +143,7 @@ async def logs_stream_show():
         if latest_time_this is not None:
             latest_time_input = latest_time_this
             for log_file in sorted_log_files:
-                await my_printBody(os.path.basename(log_file) + "<br>")
+                await my_printBodyWS(os.path.basename(log_file) + "<br>")
                 line_num = 0
                 file_end = False
                 wait_num = 0
@@ -122,7 +151,7 @@ async def logs_stream_show():
                     if wait_num > 15:
                         break
                     line_num_old = line_num
-                    file_end, line_num = scroll_one_file(log_file, file_end, line_num)
+                    file_end, line_num = await scroll_one_file(log_file, file_end, line_num)
                     if file_end:
                         break
                     else:
@@ -132,12 +161,16 @@ async def logs_stream_show():
                             wait_num = wait_num + 1
         # 所有文件读完后，等待5秒
         await asyncio.sleep(5)
-        logs_scroll_show(latest_time_input)
+        await logs_scroll_show(latest_time_input)
 
+    latest_time = None
+    await logs_scroll_show(latest_time)
+
+
+async def logs_stream_show_page():
     await my_printHeader({"Content-Type": "text/html;charset=utf-8"})
     js = ''
     with open(f'{base_path}/pages/html/js/logs_scroll_show.js', 'r') as files:
         js = files.readlines()
-    await my_printBody(f"<script>{''.join(js)}</script>")
-    latest_time = None
-    logs_scroll_show(latest_time)
+    port = os.environ.get("port")
+    await my_printBody(f"<script>var ws_port={port};{''.join(js)}</script>", True)

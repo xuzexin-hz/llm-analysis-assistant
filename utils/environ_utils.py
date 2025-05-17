@@ -51,6 +51,15 @@ async def my_printBytes(body: bytes, end_body=False):
     except (Exception):
         pass
 
+async def my_printBodyWS(body: str):
+    self = GlobalVal.myHandler()
+    try:
+        await self.server.send({
+            "type": "websocket.send",
+            'text': body
+        })
+    except (Exception):
+        pass
 
 async def my_printHeader(headers_dict: Dict):
     self = GlobalVal.myHandler()

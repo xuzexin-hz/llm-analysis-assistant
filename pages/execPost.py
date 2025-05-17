@@ -5,7 +5,7 @@ import os
 from utils.environ_utils import get_path, streamHeader, get_apikey, get_base_url, my_printHeader, my_printBody, \
     get_request_json
 from utils.http_clientx import http_clientx
-from utils.logs_utils import get_num, write_httplog
+from utils.logs_utils import get_num, write_httplog, LOG_END_SYMBOL, LogType
 from utils.mock_utils import create_staticStream, create_staticData
 
 
@@ -14,14 +14,14 @@ async def my_POST():
     base_url = get_base_url()
     url_path = get_path()
     num = get_num()
-    write_httplog(url_path, num)
+    write_httplog(LogType.POST,url_path, num)
     post_json = get_request_json()
     model = post_json.get('model')
     stream = post_json.get('stream')
     if stream is None:
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
-    write_httplog(req_str, num)
+    write_httplog(LogType.REQ,req_str, num)
 
     is_mock_str = os.environ.get("IS_MOCK")
     res_type = None
@@ -82,7 +82,7 @@ async def my_POST():
         else:
             payload = response.text
             await my_printBody(payload, True)
-            write_httplog(payload + '\n\n----------end----------', num)
+            write_httplog(LogType.RES,payload + '\n\n' + LOG_END_SYMBOL, num)
     else:
         await streamHeader()
 
@@ -97,9 +97,9 @@ async def my_POST():
                 else:
                     pre_data = 'data: '
                     data = data + '\n\n'
-                write_httplog(data, num)
+                write_httplog(LogType.REC,data, num)
                 await my_printBody(pre_data + data)
-                # why?
+                # 让出CPU，让事件循环有机会刷新和发送当前的数据
                 await asyncio.sleep(0)
                 try:
                     v = json.loads(data)
@@ -113,10 +113,10 @@ async def my_POST():
                     pass
             await my_printBody('', True)
             if all_msg != '':
-                write_httplog(all_msg, num)
+                write_httplog(LogType.REM,all_msg, num)
 
         if is_mock:
             await create_staticStream(num, model, res_type)
         else:
             await echoChunk()
-        write_httplog('\n\n----------end----------', num)
+        write_httplog(LogType.END,'\n\n' + LOG_END_SYMBOL, num)

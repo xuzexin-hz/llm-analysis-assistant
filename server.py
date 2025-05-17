@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import os
+import re
 import socket
 
 import uvicorn
@@ -9,7 +10,7 @@ import uvicorn
 from pages.execGET import my_GET
 from pages.execPost import my_POST
 from utils.environ_utils import GlobalVal
-from utils.logs_utils import app_init, is_first_open
+from utils.logs_utils import app_init, is_first_open, logs_stream_show
 
 
 class App:
@@ -22,11 +23,28 @@ class App:
         myself.server.receive = receive
         myself.server.send = send
         GlobalVal.myHandlerList[coroutine_id] = myself
-        await self.set_my_environ(myself)
-        if scope['method'] == 'GET':
-            await my_GET()
-        elif scope['method'] == 'POST':
-            await my_POST()
+        if scope['type'] == 'http':
+            await self.set_my_environ(myself)
+            if scope['method'] == 'GET':
+                await my_GET()
+            elif scope['method'] == 'POST':
+                await my_POST()
+        elif scope['type'] == 'websocket':
+            # WebSocket 处理
+            await send({
+                'type': 'websocket.accept',
+            })
+
+            # 用于处理接收消息
+            async def receive_message():
+                while True:
+                    message = await receive()
+                    if message['type'] == 'websocket.receive':
+                        return message
+
+            if scope['path'] == '/logs_ws':
+                # 调用 WebSocket 应用程序进行处理
+                await logs_stream_show()
 
     async def set_my_environ(self, myself):
         if 'path' in myself.server.scope:
@@ -91,10 +109,30 @@ def __is_port_in_use(port):
             return False
 
 
+class CustomJsonFormatter(logging.Formatter):
+    def format(self, record):
+        # Define the regex pattern to extract log components
+        pattern = r'(?P<ip>[^ ]+) - "(?P<method>[^ ]+) (?P<path>[^ ]+) (?P<protocol>[^"]+)" (?P<status>\d+)'
+        match = re.match(pattern, record.getMessage())
+
+        # If the log message matches the expected format, extract the components
+        if match:
+            log_data = {
+                'ip': match.group('ip'),
+                'method': match.group('method'),
+                'path': match.group('path'),
+                'protocol': match.group('protocol'),
+                'status': match.group('status')
+            }
+            record.message_json = log_data
+        return super().format(record)
+
+
 class CustomLogger(logging.getLoggerClass()):
     def __my_init__(self):
         file_handler = logging.FileHandler('logs/app.log')
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = CustomJsonFormatter(
+            "{'asctime':'%(asctime)s','name':'%(name)s','level':'%(levelname)s','data':%(message_json)s}")
         file_handler.setFormatter(formatter)
         self.handlers = []
         self.addHandler(file_handler)
@@ -143,10 +181,13 @@ if __name__ == '__main__':
                         help='The OpenAi base_url (default: http://127.0.0.1:11434)')
     parser.add_argument('-mock', '--is_mock', type=str, default='False',
                         help='Control whether to enable the mock function for testing streaming output')
+    parser.add_argument('-single_word', '--is_single_word', type=str, default='False',
+                        help='Is the streaming output mock data displayed word for word')
     parser.add_argument('-ms', '--mock_string', type=str, default=None,
                         help='mock data of OpenAI and OLAM')
     parser.add_argument('-msc', '--mock_count', type=int, default=3,
                         help='mock data loop count')
+    parser.add_argument('-looptime', '--looptime', type=float, default=0.35, help='Simulated data loop tentative time (second)')
     args = parser.parse_args()
     os.environ["OPENAI_BASE_URL"] = args.base_url
     if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
@@ -156,4 +197,10 @@ if __name__ == '__main__':
     if args.mock_string is not None:
         os.environ["mock_string"] = args.mock_string
     os.environ["mock_count"] = str(args.mock_count)
+    os.environ["port"] = str(args.port)
+    if args.is_single_word.lower() == 'true' or args.is_single_word.lower() == '1':
+        os.environ["single_word"] = 'True'
+    else:
+        os.environ["single_word"] = 'False'
+    os.environ["looptime"] = str(args.looptime)
     run_server(args.port)

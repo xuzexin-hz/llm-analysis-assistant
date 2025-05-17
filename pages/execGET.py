@@ -3,7 +3,7 @@ import asyncio
 from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
     my_printBody
 from utils.http_clientx import http_clientx
-from utils.logs_utils import write_httplog, get_num, logs_stream_show
+from utils.logs_utils import write_httplog, get_num, logs_stream_show_page, LOG_END_SYMBOL, LogType
 
 
 async def my_GET():
@@ -28,7 +28,7 @@ async def my_GET():
             await my_printBody(f"hello {i + 1}\n", True if i == 34 else False)
             await asyncio.sleep(1)  # 模拟长时间操作
     elif url_path == '/logs':
-        await logs_stream_show()
+        await logs_stream_show_page()
     base_url = get_base_url()
     http_url = None
     if '/v1/models' in url_path or '/models' in url_path:
@@ -39,12 +39,13 @@ async def my_GET():
         http_url = base_url + '/api/tags'
     if http_url is not None:
         num = get_num()
-        write_httplog(url_path, num)
+        write_httplog(LogType.GET, url_path, num)
         api_key = get_apikey()
         headers = {'Authorization': f'Bearer {api_key}'}
         client = http_clientx(http_url)
         response = client.http_get(headers=headers)
         payload = response.text
-        write_httplog(payload + '\n\n----------end----------', num)
+        write_httplog(LogType.RES, payload + '\n\n', num)
+        write_httplog(LogType.END, LOG_END_SYMBOL, num)
         await my_printHeader({"Content-Type": "application/json"})
         await my_printBody(payload, True)
