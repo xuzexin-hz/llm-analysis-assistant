@@ -1,0 +1,1 @@
+python.exe -m pip install "uvicorn[standard]" openai pyinstaller
