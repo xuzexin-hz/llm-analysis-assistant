@@ -1,12 +1,13 @@
+import asyncio
 import os
 import time
 from datetime import datetime, timedelta, timezone
 
 from utils.environ_utils import my_printBody
-from utils.logs_utils import write_httplog
+from utils.logs_utils import write_httplog, LogType
 
 
-def create_staticData(num, model, res_type):
+async def create_staticData(num, model, res_type):
     content = '我是一个AI助手，属于llm-logs-analysis。'
     if os.environ.get('mock_string') is not None:
         content = os.environ.get('mock_string')
@@ -40,11 +41,13 @@ def create_staticData(num, model, res_type):
     for _ in range(1):
         # 遍历 completion 列表
         for chunk in completion:
-            my_printBody(chunk)
-            write_httplog(chunk, num)
+            await my_printBody(chunk)
+            write_httplog(LogType.REC, chunk, num)
+
+    await my_printBody('', True)
 
 
-def create_staticStream(num, model, res_type):
+async def create_staticStream(num, model, res_type):
     my_time = int(time.time())
     utc_time = datetime.fromtimestamp(my_time, tz=timezone.utc)
     beijing_timezone = timezone(timedelta(hours=8))
@@ -62,37 +65,36 @@ def create_staticStream(num, model, res_type):
         else:
             content[1] = ' ollama'
         content[2] = '! '
+
     if res_type == 1:
-        completion = [
-            f'data: {{ "id": "chatcmpl-1111", "object": "text.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai", "choices": [{{ "index": 0, "text": "{content[0]}", "finish_reason": null }}]}}\n\n',
-            f'data: {{ "id": "chatcmpl-1111", "object": "text.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai", "choices": [{{ "index": 0, "text": "{content[1]}", "finish_reason": null }}]}}\n\n',
-            f'data: {{ "id": "chatcmpl-1111", "object": "text.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai", "choices": [{{ "index": 0, "text": "{content[2]}", "finish_reason": null }}]}}\n\n'
-        ]
+        one_completion = f'data: {{ "id": "chatcmpl-1111", "object": "text.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai", "choices": [{{ "index": 0, "text": "%s", "finish_reason": null }}]}}\n\n',
     elif res_type == 2:
-        completion = [
-            f'data: {{ "id": "chatcmpl-1111", "object": "chat.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai","choices": [{{"index": 0, "delta": {{"role": "assistant", "content": "{content[0]}" }}, "finish_reason": null }}]}}\n\n',
-            f'data: {{ "id": "chatcmpl-1111", "object": "chat.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai","choices": [{{"index": 0, "delta": {{"role": "assistant", "content": "{content[1]}" }}, "finish_reason": null }}]}}\n\n',
-            f'data: {{ "id": "chatcmpl-1111", "object": "chat.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai","choices": [{{"index": 0, "delta": {{"role": "assistant", "content": "{content[2]}" }}, "finish_reason": null }}]}}\n\n'
-        ]
+        one_completion = f'data: {{ "id": "chatcmpl-1111", "object": "chat.completion.chunk", "created": {my_time}, "model": "{model}", "system_fingerprint": "fp_openai","choices": [{{"index": 0, "delta": {{"role": "assistant", "content": "%s" }}, "finish_reason": null }}]}}\n\n'
     elif res_type == 4:
-        completion = [
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "response": "{content[0]}", "done": false }}\n'
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "response": "{content[1]}", "done": false }}\n'
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "response": "{content[2]}", "done": false }}\n'
-        ]
+        one_completion = f'{{ "model": "{model}", "created_at": "{formatted_time}", "response": "%s", "done": false }}\n'
     elif res_type == 5:
-        completion = [
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "message": {{ "role": "assistant", "content": "{content[0]}", "images": null }}, "done": false }}\n',
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "message": {{ "role": "assistant", "content": "{content[1]}", "images": null }}, "done": false }}\n',
-            f'{{ "model": "{model}", "created_at": "{formatted_time}", "message": {{ "role": "assistant", "content": "{content[2]}", "images": null }}, "done": false }}\n',
-        ]
+        one_completion = f'{{ "model": "{model}", "created_at": "{formatted_time}", "message": {{ "role": "assistant", "content": "%s", "images": null }}, "done": false }}\n'
     # 在一个循环中发送数据
+    completion = []
+    if os.environ.get("single_word") == "True":
+        word = content[0] + content[1] + content[2]
+        for char in word:
+            completion.append(one_completion % char)
+    else:
+        completion = [
+            one_completion % content[0],
+            one_completion % content[1],
+            one_completion % content[2]
+        ]
+    ts = float(os.environ["looptime"])
     for _ in range(int(os.environ.get("mock_count"))):
         # 遍历 completion 列表
         for chunk in completion:
-            my_printBody(chunk)
-            write_httplog(chunk, num)
-            time.sleep(1)  # 模拟一个长时间运行的过程
+            await my_printBody(chunk)
+            write_httplog(LogType.REC, chunk, num)
+            await asyncio.sleep(ts)  # 模拟一个长时间运行的过程
+
+    await my_printBody('', True)
 
 
 def __split_string(s):

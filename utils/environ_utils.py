@@ -1,7 +1,6 @@
+import asyncio
 import json
 import os
-import sys
-import threading
 from typing import Dict
 
 
@@ -11,28 +10,65 @@ class GlobalVal:
     @staticmethod
     def myHandler():
         if GlobalVal.myHandlerList:
-            thread_id = threading.get_ident()
-            return GlobalVal.myHandlerList[thread_id]
+            coroutine_id = id(asyncio.current_task())
+            return GlobalVal.myHandlerList[coroutine_id]
 
 
 def get_base_path():
     return os.path.abspath(__file__) + "//..//../"
 
 
-def my_printBody(body: str):
+async def my_printBody(body: str, end_body=False):
     self = GlobalVal.myHandler()
     try:
-        self.wfile.write(body.encode('utf-8'))
+        await self.server.send({
+            'type': 'http.response.body',
+            'body': body.encode('utf-8'),
+            'more_body': True
+        })
+        if end_body:
+            await self.server.send({
+                'type': 'http.response.body',
+                'body': b'',
+            })
     except (Exception):
         pass
 
 
-def my_printHeader(data: Dict):
+async def my_printBytes(body: bytes, end_body=False):
     self = GlobalVal.myHandler()
-    self.send_response(200)
-    for name, value in data.items():
-        self.send_header(name, value)
-    self.end_headers()
+    try:
+        await self.server.send({
+            'type': 'http.response.body',
+            'body': body,
+            'more_body': True
+        })
+        if (end_body == True):
+            await self.server.send({
+                'type': 'http.response.body',
+                'body': b'',
+            })
+    except (Exception):
+        pass
+
+async def my_printBodyWS(body: str):
+    self = GlobalVal.myHandler()
+    try:
+        await self.server.send({
+            "type": "websocket.send",
+            'text': body
+        })
+    except (Exception):
+        pass
+
+async def my_printHeader(headers_dict: Dict):
+    self = GlobalVal.myHandler()
+    headers_list = [(key.lower().encode('utf-8'), value.encode('utf-8')) for key, value in headers_dict.items()]
+    await self.server.send({
+        'type': 'http.response.start',
+        'status': 200,
+        'headers': headers_list
+    })
 
 
 def get_request_json():
@@ -53,7 +89,7 @@ def get_apikey():
     return 'API_KEY'
 
 
-def streamHeader():
+async def streamHeader():
     """
     Output the HTTP headers for SSE (Server-Sent Events), including:
 
@@ -64,17 +100,17 @@ def streamHeader():
     This function is used to begin an SSE response, and is called before outputting
     any data in the stream.
     """
-    my_printHeader({"Content-Type": "text/event-stream"})
+    await my_printHeader({"Content-Type": "text/event-stream"})
 
 
 def get_base_url():
     return os.environ.get("OPENAI_BASE_URL", "")
 
 
-def get_favicon():
+async def get_favicon():
     base_path = get_base_path()
-    image_path = f'{base_path}/cgi-bin/html/imgs/favicon.ico'
+    image_path = f'{base_path}/pages/html/imgs/favicon.ico'
     if os.path.exists(image_path):
         # 打开并读取图片文件
         with open(image_path, 'rb') as image_file:
-            sys.stdout.buffer.write(image_file.read())
+            await my_printBytes(image_file.read(), True)

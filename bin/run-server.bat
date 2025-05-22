@@ -1,2 +1,2 @@
 cd ../
-python server.py
+py3.11\\python server.py
