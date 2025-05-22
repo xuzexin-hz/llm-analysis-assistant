@@ -9,7 +9,7 @@ import uvicorn
 
 from pages.execGET import my_GET
 from pages.execPost import my_POST
-from utils.environ_utils import GlobalVal
+from utils.environ_utils import GlobalVal, get_base_path
 from utils.logs_utils import app_init, is_first_open, logs_stream_show
 
 
@@ -93,7 +93,7 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.0.9 - building the best open-source LLM logs analysis system.
+    v0.1.0 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
     """
@@ -130,7 +130,8 @@ class CustomJsonFormatter(logging.Formatter):
 
 class CustomLogger(logging.getLoggerClass()):
     def __my_init__(self):
-        file_handler = logging.FileHandler('logs/app.log')
+        base_path = get_base_path()
+        file_handler = logging.FileHandler(base_path + 'logs/app.log')
         formatter = CustomJsonFormatter(
             "{'asctime':'%(asctime)s','name':'%(name)s','level':'%(levelname)s','data':%(message_json)s}")
         file_handler.setFormatter(formatter)
@@ -187,7 +188,8 @@ if __name__ == '__main__':
                         help='mock data of OpenAI and OLAM')
     parser.add_argument('-msc', '--mock_count', type=int, default=3,
                         help='mock data loop count')
-    parser.add_argument('-looptime', '--looptime', type=float, default=0.35, help='Simulated data loop tentative time (second)')
+    parser.add_argument('-looptime', '--looptime', type=float, default=0.35,
+                        help='Simulated data loop tentative time (second)')
     args = parser.parse_args()
     os.environ["OPENAI_BASE_URL"] = args.base_url
     if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
