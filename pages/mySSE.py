@@ -1,0 +1,99 @@
+import asyncio
+import json
+import re
+import time
+from urllib.parse import urlparse
+
+from utils.environ_utils import get_query, my_printBody
+from utils.http_clientx import http_clientx
+from utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
+
+
+def my_json(data):
+    # 使用正则表达式提取 event 和 data
+    pattern = r'event:\s*(?P<event>.*?)\s*data:\s*(?P<data>.*)'
+    match = re.match(pattern, data)
+    if match:
+        # 提取 event 和 data
+        event = match.group('event').strip()
+        data_field = match.group('data').strip()
+        # 创建 JSON 对象
+        json_output = {
+            "event": event,
+            "data": data_field
+        }
+        # 将 JSON 对象转换为字符串
+        return json.dumps(json_output)
+    else:
+        return None
+
+
+async def mySSE_sse(scope, receive_message, send, num, http_url):
+    try:
+        url_path = '/sse'
+        write_httplog(LogType.SSEQ, url_path, num)
+        if http_url is None:
+            return
+        client = http_clientx(http_url)
+        client.HTTP_TYPE = 'SSE'
+        response = client.http_get(headers=None, stream=True)
+        for chunk in response:
+            data = chunk.decode()
+            print(str(time.time()) + ":" + data)
+            if ': ping' not in data and data != '':
+                jj = my_json(data)
+                if jj is not None:
+                    try:
+                        await send({
+                            "type": "websocket.send",
+                            'text': jj
+                        })
+                    except Exception as e:
+                        break
+                    write_httplog(LogType.SSES, jj + '\n\n', num)
+                    await asyncio.sleep(0)
+            else:
+                await asyncio.sleep(1)
+    except Exception as e:
+        pass
+
+
+async def mySSE_init(scope, receive_message, send, num):
+    http_url = get_query('url')
+    task = asyncio.create_task(mySSE_sse(scope, receive_message, send, num, http_url))
+    try:
+        while True:
+            await asyncio.sleep(2)
+            # 这里发送心跳主要是为了task.cancel()
+            await send({
+                "type": "websocket.send",
+                'text': json.dumps({'event': 'ping', 'data': str(time.time())})
+            })
+            coroutine_id = id(asyncio.current_task())
+            print(str(coroutine_id) + ":" + str(len(list(asyncio.all_tasks()))))
+    except Exception as e:
+        task.cancel()
+        print(f"Connection error: {e}")
+
+
+async def mySSE_msg(data, num):
+    http_url = data['url']
+    if http_url is None:
+        return
+    parsed_url = urlparse(http_url)
+    url = parsed_url.scheme + "://" + parsed_url.netloc + '/messages/?session_id=' + data['session_id']
+    client = http_clientx(url)
+    if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resource/list',
+                          'tools/call']:
+        if 'url' in data:
+            del data['url']
+        if 'session_id' in data:
+            del data['session_id']
+        headers = {'Content-Type': 'application/json'}
+        response = client.http_post(headers=headers, data=data)
+        jj = {}
+        jj['text'] = response.text
+        jj['method'] = data['method']
+        write_httplog(LogType.RES, json.dumps(jj), num)
+        write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
+        await my_printBody(json.dumps(jj), True)

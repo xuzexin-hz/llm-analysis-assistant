@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 
+from pages.mySSE import mySSE_msg
 from utils.environ_utils import get_path, streamHeader, get_apikey, get_base_url, my_printHeader, my_printBody, \
     get_request_json
 from utils.http_clientx import http_clientx
@@ -22,7 +23,10 @@ async def my_POST():
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
     write_httplog(LogType.REQ, req_str, num)
-
+    if '/logs_ws_msg' in url_path:
+        await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
+        await mySSE_msg(post_json, num)
+        return
     is_mock_str = os.environ.get("IS_MOCK")
     res_type = None
     if '/v1/completions' in url_path:

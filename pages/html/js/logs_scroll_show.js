@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function isValidJSON(str) {
     try {
-        return JSON.parse(str); // 如果解析成功，返回 true
+        return JSON.parse(str); // 如果解析成功，返回解析后的对象
     } catch (e) {
         return false; // 如果出现错误，返回 false
     }
@@ -30,7 +30,8 @@ ws.onopen = () => {
     console.log('Connected to WebSocket server');
 };
 ws.onmessage = (event) => {
-    var json = isValidJSON(event.data);console.log(json);
+    var json = isValidJSON(event.data);
+    console.log(json);
     if (json) {
         var data = isValidJSON(json['data']['data']);
         if (data) {

@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from typing import Dict
+from urllib.parse import parse_qs
 
 
 class GlobalVal:
@@ -31,7 +32,7 @@ async def my_printBody(body: str, end_body=False):
                 'type': 'http.response.body',
                 'body': b'',
             })
-    except (Exception):
+    except Exception as e:
         pass
 
 
@@ -51,6 +52,7 @@ async def my_printBytes(body: bytes, end_body=False):
     except (Exception):
         pass
 
+
 async def my_printBodyWS(body: str):
     self = GlobalVal.myHandler()
     try:
@@ -60,6 +62,7 @@ async def my_printBodyWS(body: str):
         })
     except (Exception):
         pass
+
 
 async def my_printHeader(headers_dict: Dict):
     self = GlobalVal.myHandler()
@@ -80,6 +83,23 @@ def get_request_json():
 def get_path():
     self = GlobalVal.myHandler()
     return self.server.PATH_INFO
+
+
+def get_query(name):
+    self = GlobalVal.myHandler()
+    query_string = self.server.scope['query_string']
+    # 先将字节串解码为字符串
+    query_string_str = query_string.decode('utf-8')
+    # 使用 parse_qs 解析查询字符串
+    params = parse_qs(query_string_str)
+    # 获取 url 参数
+    url = params.get(name, [None])[0]  # get 方法返回一个列表，取第一个元素
+    return url
+
+
+def get_request_num():
+    self = GlobalVal.myHandler()
+    return self.server.num
 
 
 def get_apikey():

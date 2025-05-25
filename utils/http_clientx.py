@@ -11,6 +11,7 @@ class http_clientx:
     # RE_PATTERN = rb'data:\s*(\{.*?\})\s*\n\n'
     # 兼容ollama格式
     RE_PATTERN = rb'(?:data:\s*)?(\{.*?\})\s*\n{1,2}'
+    HTTP_TYPE = "HTTP"
 
     def __init__(self, url):
         self.url = url
@@ -18,7 +19,10 @@ class http_clientx:
         self.hostname = parsed_url.hostname
         self.scheme = parsed_url.scheme
         self.port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
-        self.path = parsed_url.path if parsed_url.path else '/'
+        # self.path = parsed_url.path if parsed_url.path else '/'
+        hostname = url.split("//")[-1].split("/")[0]  # 获取主机名
+        # 兼容post的url中带参数
+        self.path = url.split(hostname, 1)[1]
         self.headers = [f'Host: {self.hostname}', 'Connection: close']
 
     @property
@@ -41,10 +45,13 @@ class http_clientx:
                 print("JSON解析失败，返回的内容不合法。")
         return self._json
 
-    def http_get(self, headers=None):
+    def http_get(self, headers=None, stream=False):
         # 创建 HTTP 请求行
         request_line = f'GET {self.path} HTTP/1.1\r\n'
-        return self.__private_method(headers, request_line, "\r\n\r\n")
+        data_line = "\r\n\r\n"
+        if stream:
+            return self.__private_method_stream(headers, request_line, data_line)
+        return self.__private_method(headers, request_line, data_line)
 
     def http_post(self, headers=None, data=None):
         # 创建 HTTP 请求行
@@ -88,6 +95,10 @@ class http_clientx:
                 if not data:
                     break
                 res_data = self.__stream(res_data + data)
+                if self.HTTP_TYPE != "HTTP":
+                    yield res_data
+                    res_data = b''
+                    continue
                 # 使用re.search来查找匹配项
                 matches = re.findall(self.RE_PATTERN, res_data, re.DOTALL)
                 if matches:
@@ -106,7 +117,7 @@ class http_clientx:
         else:
             body = data
         # 处理分块响应
-        if b'Transfer-Encoding: chunked' in data or self.IS_STREAM:
+        if b'transfer-encoding: chunked' in data.lower() or self.IS_STREAM:
             self.IS_STREAM = True
             # 解析分块
             chunks = []
@@ -122,6 +133,8 @@ class http_clientx:
                     break  # 0 表示结束
                 # 读取分块
                 chunk = body[length_pos + 2:length_pos + 2 + chunk_length]  # +2 是为了 skip '\r\n'
+                if self.HTTP_TYPE != "HTTP":
+                    return chunk
                 # 使用re.search来查找匹配项
                 matches = re.findall(self.RE_PATTERN, chunk, re.DOTALL)
                 if (len(matches) == 0):
@@ -133,8 +146,7 @@ class http_clientx:
             response_body = b''.join(chunks)
             return response_body
         else:
-            # 如果不是分块编码，直接打印响应
-            return body.decode()
+            return body
 
     def __private_method(self, headers, request_line, data_line):
         # 构建请求头

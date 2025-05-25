@@ -9,8 +9,9 @@ import uvicorn
 
 from pages.execGET import my_GET
 from pages.execPost import my_POST
+from pages.mySSE import mySSE_init
 from utils.environ_utils import GlobalVal, get_base_path
-from utils.logs_utils import app_init, is_first_open, logs_stream_show
+from utils.logs_utils import app_init, is_first_open, logs_stream_show, get_num
 
 
 class App:
@@ -24,7 +25,7 @@ class App:
         myself.server.send = send
         GlobalVal.myHandlerList[coroutine_id] = myself
         if scope['type'] == 'http':
-            await self.set_my_environ(myself)
+            await set_my_environ(myself)
             if scope['method'] == 'GET':
                 await my_GET()
             elif scope['method'] == 'POST':
@@ -45,34 +46,41 @@ class App:
             if scope['path'] == '/logs_ws':
                 # 调用 WebSocket 应用程序进行处理
                 await logs_stream_show()
+            elif scope['path'] == '/sse_ws':
+                num = get_num()
+                myself.server.num = num
+                GlobalVal.myHandlerList[coroutine_id] = myself
+                await mySSE_init(scope, receive_message, send, num)
 
-    async def set_my_environ(self, myself):
-        if 'path' in myself.server.scope:
-            myself.server.PATH_INFO = myself.server.scope['path']
-            authorization_headers = [item for item in myself.server.scope['headers'] if item[0] == b'authorization']
-            if authorization_headers:
-                authorization_header = authorization_headers[0]
-                if len(authorization_header) == 2:
-                    authorization = authorization_header[1].split()
-                    if len(authorization) == 2:
-                        myself.server.API_KEY = authorization[1].decode()
-            if myself.server.scope['method'] == 'POST':
-                body = await self.read_body(myself.server.receive)
-                myself.server.HTTP_REQUEST_BODY = body.decode()
 
-    async def read_body(self, receive):
-        """
-        Read and return the entire body from an incoming ASGI message.
-        """
-        body = b''
-        more_body = True
+async def set_my_environ(myself):
+    if 'path' in myself.server.scope:
+        myself.server.PATH_INFO = myself.server.scope['path']
+        authorization_headers = [item for item in myself.server.scope['headers'] if item[0] == b'authorization']
+        if authorization_headers:
+            authorization_header = authorization_headers[0]
+            if len(authorization_header) == 2:
+                authorization = authorization_header[1].split()
+                if len(authorization) == 2:
+                    myself.server.API_KEY = authorization[1].decode()
+        if myself.server.scope['method'] == 'POST':
+            body = await read_body(myself.server.receive)
+            myself.server.HTTP_REQUEST_BODY = body.decode()
 
-        while more_body:
-            message = await receive()
-            body += message.get('body', b'')
-            more_body = message.get('more_body', False)
 
-        return body
+async def read_body(receive):
+    """
+    Read and return the entire body from an incoming ASGI message.
+    """
+    body = b''
+    more_body = True
+
+    while more_body:
+        message = await receive()
+        body += message.get('body', b'')
+        more_body = message.get('more_body', False)
+
+    return body
 
 
 def print_logo():
@@ -169,10 +177,12 @@ def run_server(port=8000):
         url = f"http://127.0.0.1:{port}"
         webbrowser.open(url)
     # 启动 Uvicorn 服务器
-    app = App()
-    config = uvicorn.Config(app, host='0.0.0.0', port=port, log_level="info")
-    server = uvicorn.Server(config)
-    server.run()
+    uvicorn.run("server:App", factory=True, host='0.0.0.0', port=port, log_level="info", workers=4,
+                ws_ping_interval=0.5, ws_ping_timeout=1.0)
+    # app = App()
+    # config = uvicorn.Config(app,factory=True, host='0.0.0.0', port=port, log_level="info", workers=4, ws_ping_interval=0.5,ws_ping_timeout=1.0)
+    # server = uvicorn.Server(config)
+    # server.run()
 
 
 if __name__ == '__main__':
