@@ -35,8 +35,14 @@ ws.onmessage = (event) => {
     if (json) {
         var data = isValidJSON(json['data']['data']);
         if (data) {
+            var style = '';
+            if (json['type'] == 'req') {
+                style = 'color: blue;';
+            } else if (json['type'] == 'res') {
+                style = 'color: green;';
+            }
             var formattedJson = JSON.stringify(data, null, 2);
-            document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + '<pre class="jsonContainer">' + formattedJson + '</pre>' + '<br/>';
+            document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' + '<br/>';
         } else {
             document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + json['data']['data'] + '<br/>';
         }

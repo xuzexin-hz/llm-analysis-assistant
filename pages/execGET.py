@@ -39,7 +39,7 @@ async def my_GET():
     elif '/api/tags' in url_path:
         http_url = base_url + '/api/tags'
     elif '/sse' in url_path:
-        await js_show_page("sse")
+        await js_show_page("mcp")
     if http_url is not None:
         num = get_num()
         write_httplog(LogType.GET, url_path, num)

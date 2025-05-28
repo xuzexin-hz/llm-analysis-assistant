@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 class http_clientx:
     IS_STREAM = False
-    ITER_CHUNK_SIZE = 4096
+    ITER_CHUNK_SIZE = 40960
     # RE_PATTERN = rb'data:\s*(\{.*?\})\s*\n\n'
     # 兼容ollama格式
     RE_PATTERN = rb'(?:data:\s*)?(\{.*?\})\s*\n{1,2}'
@@ -42,8 +42,27 @@ class http_clientx:
                 json_data = json.loads(json_str)  # 解析JSON
                 self._json = json_data
             except json.JSONDecodeError:
+                return None
                 print("JSON解析失败，返回的内容不合法。")
         return self._json
+
+    @property
+    def header(self):
+        if not hasattr(self, "_header"):
+            header = self.response_headers
+            if not header:
+                self._header = []
+            else:
+                headers = {}
+                # 将原始字符串按行分割
+                lines = header.strip().split('\r\n')
+                # 跳过第一行（状态行）
+                for line in lines[1:]:
+                    # 分割 key 和 value
+                    key, value = line.split(': ', 1)
+                    headers[key.lower()] = value  # 转换为小写以便统一处理
+                self._header = headers
+        return self._header
 
     def http_get(self, headers=None, stream=False):
         # 创建 HTTP 请求行
@@ -179,7 +198,7 @@ class http_clientx:
         # 找到正文部分的开始位置
         res_headers, body = response.split(b'\r\n\r\n', 1)
         # 处理分块响应
-        if b'Transfer-Encoding: chunked' in response:
+        if b'transfer-encoding: chunked' in response:
             # 解析分块
             chunks = []
             while body:

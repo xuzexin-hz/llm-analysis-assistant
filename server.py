@@ -55,7 +55,11 @@ class App:
 
 async def set_my_environ(myself):
     if 'path' in myself.server.scope:
-        myself.server.PATH_INFO = myself.server.scope['path']
+        query_string = ''
+        # 记录完整url，目前是mcp协议中使用
+        if (myself.server.scope['query_string'].decode() != ""):
+            query_string = "?" + myself.server.scope['query_string'].decode()
+        myself.server.PATH_INFO = myself.server.scope['path'] + query_string
         authorization_headers = [item for item in myself.server.scope['headers'] if item[0] == b'authorization']
         if authorization_headers:
             authorization_header = authorization_headers[0]
@@ -133,39 +137,13 @@ class CustomJsonFormatter(logging.Formatter):
                 'status': match.group('status')
             }
             record.message_json = log_data
+        else:
+            # 防止初始化时候没有ip格式日志出错
+            record.message_json = {}
         return super().format(record)
 
 
-class CustomLogger(logging.getLoggerClass()):
-    def __my_init__(self):
-        base_path = get_base_path()
-        file_handler = logging.FileHandler(base_path + 'logs/app.log')
-        formatter = CustomJsonFormatter(
-            "{'asctime':'%(asctime)s','name':'%(name)s','level':'%(levelname)s','data':%(message_json)s}")
-        file_handler.setFormatter(formatter)
-        self.handlers = []
-        self.addHandler(file_handler)
-
-    def __init__(self, name):
-        super().__init__(name)
-
-    def info(self, msg, *args, **kwargs):
-        self.__my_init__()
-        super().info(msg, *args, **kwargs)
-
-    def warning(self, msg, *args, **kwargs):
-        self.__my_init__()
-        super().warning(msg, *args, **kwargs)
-
-    def error(self, msg, *args, **kwargs):
-        self.__my_init__()
-        super().error(msg, *args, **kwargs)
-
-
 def run_server(port=8000):
-    # 使用自定义Logger类
-    logging.setLoggerClass(CustomLogger)
-
     if __is_port_in_use(port):
         print(f"Port {port} is already in use. Please choose a different port.")
         return
@@ -177,10 +155,43 @@ def run_server(port=8000):
         url = f"http://127.0.0.1:{port}"
         webbrowser.open(url)
     # 启动 Uvicorn 服务器
+    base_path = get_base_path()
+    LOGGING_CONFIG = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "()": "uvicorn.logging.DefaultFormatter",
+                "fmt": "%(levelprefix)s %(message)s",
+            },
+            "access": {
+                "()": "server.CustomJsonFormatter",
+                "fmt": "{'asctime':'%(asctime)s','name':'%(name)s','level':'%(levelname)s','data':%(message_json)s}",
+            },
+        },
+        "handlers": {
+            "default": {
+                "formatter": "default",
+                "class": "logging.FileHandler",
+                "filename": base_path + 'logs/app.log',
+            },
+            "access": {
+                "formatter": "access",
+                "class": "logging.FileHandler",
+                "filename": base_path + 'logs/app.log',
+            },
+        },
+        "loggers": {
+            "uvicorn": {"handlers": ["default"], "level": "INFO", "propagate": False},
+            "uvicorn.error": {"level": "INFO"},
+            "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+        },
+    }
     uvicorn.run("server:App", factory=True, host='0.0.0.0', port=port, log_level="info", workers=4,
-                ws_ping_interval=0.5, ws_ping_timeout=1.0)
+                ws_ping_interval=0.5, ws_ping_timeout=1.0, log_config=LOGGING_CONFIG)
     # app = App()
-    # config = uvicorn.Config(app,factory=True, host='0.0.0.0', port=port, log_level="info", workers=4, ws_ping_interval=0.5,ws_ping_timeout=1.0)
+    # config = uvicorn.Config(app, host='0.0.0.0', port=port, log_level="info", ws_ping_interval=0.5,
+    #                         ws_ping_timeout=1.0)
     # server = uvicorn.Server(config)
     # server.run()
 

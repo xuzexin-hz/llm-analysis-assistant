@@ -16,6 +16,8 @@ function get_params(name, parent) {
 
 // sse url
 var url = get_params('url', window.location.search);
+// sse ws 端口
+var mcp_session_url = '';
 // 显示请求响应日志的自增序号
 var num = 0;
 // sse 接口唯一标识
@@ -28,7 +30,8 @@ function get_index() {
     return index;
 }
 
-if (url == null || !url.endsWith('/sse')) {
+var mcp = new URL(url)
+if (url == null || !mcp.pathname.endsWith('/sse')) {
     alert("url is null");
 } else {
     const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
@@ -38,19 +41,17 @@ if (url == null || !url.endsWith('/sse')) {
         console.log('sse_WebSocket:Connected to WebSocket server');
     };
     sse_WebSocket.onmessage = (event) => {
-        console.log('sse_WebSocket', event.data);
         var json = isValidJSON(event.data);
         if (json) {
             if (json['event'] == 'ping') {
                 return;
             }
+            console.log('sse_WebSocket', event.data);
             show_step('response', event.data);
             if (json['event'] == 'endpoint') {
-                var session_id = get_params('session_id', json['data']);
-                window.session_id = session_id;
+                mcp_session_url = (new URL(url)).origin + json['data'];
                 var json1 = {
-                    "url": url,
-                    "session_id": window.session_id,
+                    "url": mcp_session_url,
                     "method": "initialize",
                     "params": {
                         "protocolVersion": "2025-03-26",
@@ -74,8 +75,7 @@ if (url == null || !url.endsWith('/sse')) {
                 var json = JSON.parse(json['data']);
                 if (json['result']['protocolVersion']) {
                     var json2 = {
-                        "url": url,
-                        "session_id": window.session_id,
+                        "url": mcp_session_url,
                         "jsonrpc": "2.0",
                         "method": "notifications/initialized"
                     };
@@ -157,8 +157,7 @@ function next_step(type) {
     if (type == 'tools') {
         var ii = get_index();
         var json3 = {
-            "url": url,
-            "session_id": window.session_id,
+            "url": mcp_session_url,
             "method": "tools/list",
             "params": {
                 "_meta": {
@@ -173,8 +172,7 @@ function next_step(type) {
     } else if (type == 'prompts') {
         var ii = get_index();
         var json4 = {
-            "url": url,
-            "session_id": window.session_id,
+            "url": mcp_session_url,
             "method": "prompts/list",
             "params": {
                 "_meta": {
@@ -189,8 +187,7 @@ function next_step(type) {
     } else if (type == 'resources') {
         var ii = get_index();
         var json5 = {
-            "url": url,
-            "session_id": window.session_id,
+            "url": mcp_session_url,
             "method": "resources/list",
             "params": {
                 "_meta": {
@@ -238,8 +235,7 @@ function show_result(type, data) {
                 var json6 = {
                     "jsonrpc": "2.0",
                     "id": ii,
-                    "url": url,
-                    "session_id": window.session_id,
+                    "url": mcp_session_url,
                     "method": "tools/call",
                     "params": {
                         "_meta": {"progressToken": ii},
@@ -280,7 +276,7 @@ function show_result(type, data) {
 
 function sendSseMessage(jsonData, func) {
     show_step('request', jsonData);
-    const url = '/logs_ws_msg';
+    const url = '/mcp_msg';
     fetch(url, {
         method: 'POST',
         headers: {

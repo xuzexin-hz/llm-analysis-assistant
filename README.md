@@ -40,10 +40,10 @@ pip install uvicorn
 python server.py
 
 #也可以指定端口
-python server.py --port=8001
+python server.py --port 8001
 
 #也可以指定openai地址,默认是ollama的地址：http://127.0.0.1:11434/v1/
-python server.py --base_url=https://api.openai.com
+python server.py --base_url https://api.openai.com
 #若配置其他api地址，记得要填写准确的api_key,ollama默认是不需要api_key的
 
 #-mock true or --is_mock true 开启mock，可以返回模拟数据
@@ -114,7 +114,7 @@ model.invoke("Hello, world!")
 
 [langgraph-codeact.md](docs/langgraph-codeact.md)
 
-# 分析并简单调用mcp(目前支持sse协议)
+# 分析并简单调用mcp(目前支持sse和streamableHttp协议)
 例如打开下面地址，url为sse服务地址
 
 http://127.0.0.1:8000/sse?url=http://127.0.0.1:3001/sse

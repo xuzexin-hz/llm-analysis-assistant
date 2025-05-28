@@ -74,6 +74,13 @@ async def my_printHeader(headers_dict: Dict):
     })
 
 
+def get_Res_Header(name: str):
+    self = GlobalVal.myHandler()
+    headers_dict = dict(self.server.scope['headers'])
+    headers = {key.decode('utf-8'): value.decode('utf-8') for key, value in headers_dict.items()}
+    return headers.get(name)
+
+
 def get_request_json():
     self = GlobalVal.myHandler()
     body = self.server.HTTP_REQUEST_BODY

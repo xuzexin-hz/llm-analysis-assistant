@@ -2,7 +2,6 @@ import asyncio
 import json
 import re
 import time
-from urllib.parse import urlparse
 
 from utils.environ_utils import get_query, my_printBody
 from utils.http_clientx import http_clientx
@@ -80,15 +79,11 @@ async def mySSE_msg(data, num):
     http_url = data['url']
     if http_url is None:
         return
-    parsed_url = urlparse(http_url)
-    url = parsed_url.scheme + "://" + parsed_url.netloc + '/messages/?session_id=' + data['session_id']
-    client = http_clientx(url)
+    client = http_clientx(http_url)
     if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resource/list',
                           'tools/call']:
         if 'url' in data:
             del data['url']
-        if 'session_id' in data:
-            del data['session_id']
         headers = {'Content-Type': 'application/json'}
         response = client.http_post(headers=headers, data=data)
         jj = {}
