@@ -35,10 +35,9 @@ async def mySSE_sse(scope, receive_message, send, num, http_url):
             return
         client = http_clientx(http_url)
         client.HTTP_TYPE = 'SSE'
-        response = client.http_get(headers=None, stream=True)
-        for chunk in response:
+        response = await client.http_get(headers=None, stream=True)
+        async for chunk in response:
             data = chunk.decode()
-            print(str(time.time()) + ":" + data)
             if ': ping' not in data and data != '':
                 jj = my_json(data)
                 if jj is not None:
@@ -85,10 +84,13 @@ async def mySSE_msg(data, num):
         if 'url' in data:
             del data['url']
         headers = {'Content-Type': 'application/json'}
-        response = client.http_post(headers=headers, data=data)
-        jj = {}
-        jj['text'] = response.text
-        jj['method'] = data['method']
-        write_httplog(LogType.RES, json.dumps(jj), num)
-        write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
-        await my_printBody(json.dumps(jj), True)
+        try:
+            response = await client.http_post(headers=headers, data=data)
+            jj = {}
+            jj['text'] = response.text
+            jj['method'] = data['method']
+            write_httplog(LogType.RES, json.dumps(jj), num)
+            write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
+            await my_printBody(json.dumps(jj), True)
+        except Exception as e:
+            pass

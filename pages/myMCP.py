@@ -38,7 +38,7 @@ async def myMCP_msg(data, num):
         mcp_session_id = get_Res_Header('mcp-session-id')
         if mcp_session_id is not None:
             headers['mcp-session-id'] = mcp_session_id
-        response = client.http_post(headers=headers, data=data)
+        response = await client.http_post(headers=headers, data=data)
         jj = response.text
         write_httplog(LogType.RES, jj, num)
         if jj is not None:

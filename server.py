@@ -187,13 +187,14 @@ def run_server(port=8000):
             "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
         },
     }
-    uvicorn.run("server:App", factory=True, host='0.0.0.0', port=port, log_level="info", workers=4,
-                ws_ping_interval=0.5, ws_ping_timeout=1.0, log_config=LOGGING_CONFIG)
-    # app = App()
-    # config = uvicorn.Config(app, host='0.0.0.0', port=port, log_level="info", ws_ping_interval=0.5,
-    #                         ws_ping_timeout=1.0)
-    # server = uvicorn.Server(config)
-    # server.run()
+    # uvicorn.run("server:App", factory=True, host='0.0.0.0', port=port, log_level="info", workers=4,
+    #             ws_ping_interval=0.5, ws_ping_timeout=1.0, log_config=LOGGING_CONFIG)
+
+    app = App()
+    config = uvicorn.Config(app, host='0.0.0.0', port=port, log_level="info", ws_ping_interval=0.5,
+                            ws_ping_timeout=1.0, log_config=LOGGING_CONFIG)
+    server = uvicorn.Server(config)
+    server.run()
 
 
 if __name__ == '__main__':

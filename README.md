@@ -117,9 +117,15 @@ model.invoke("Hello, world!")
 # 分析并简单调用mcp(目前支持sse和streamableHttp协议)
 例如打开下面地址，url为sse服务地址
 
-http://127.0.0.1:8000/sse?url=http://127.0.0.1:3001/sse
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:3001/sse
 
 ![mcp-sse.png](docs/imgs/mcp-sse.png)
+
+# 检测分析mcp-streamable-http
+
+![mcp-streamable-http.png](docs/imgs/mcp-streamable-http.png)
+
+然后通过实时查看日志来分析mcp-streamable-http逻辑
 
 # License
 [Apache 2.0 License.](LICENSE)

@@ -1,7 +1,7 @@
 import asyncio
 
 from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
-    my_printBody
+    my_printBody, get_Res_Header
 from utils.http_clientx import http_clientx
 from utils.js_utils import js_show_page
 from utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
@@ -38,15 +38,18 @@ async def my_GET():
         http_url = base_url + '/api/version'
     elif '/api/tags' in url_path:
         http_url = base_url + '/api/tags'
-    elif '/sse' in url_path:
-        await js_show_page("mcp")
+    elif '/mcp' in url_path:
+        user_agent = get_Res_Header("user-agent")
+        # 浏览器请求
+        if user_agent is not None and user_agent.startswith("Mozilla"):
+            await js_show_page("mcp")
     if http_url is not None:
         num = get_num()
         write_httplog(LogType.GET, url_path, num)
         api_key = get_apikey()
         headers = {'Authorization': f'Bearer {api_key}'}
         client = http_clientx(http_url)
-        response = client.http_get(headers=headers)
+        response = await client.http_get(headers=headers)
         payload = response.text
         write_httplog(LogType.RES, payload + '\n\n', num)
         write_httplog(LogType.END, LOG_END_SYMBOL, num)

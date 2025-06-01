@@ -24,6 +24,7 @@ async def my_POST():
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
     write_httplog(LogType.REQ, req_str, num)
+    # msc sse的网页调用
     if '/mcp_msg' in url_path:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         await mySSE_msg(post_json, num)
@@ -35,7 +36,7 @@ async def my_POST():
     res_type = None
     if '/v1/completions' in url_path:
         res_type = 1
-    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path:
+    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path or '/v1/responses' in url_path:
         res_type = 2
     elif '/completions' in url_path:
         res_type = 1
@@ -82,7 +83,7 @@ async def my_POST():
         pass
     else:
         client = http_clientx(http_url)
-        response = client.http_post(headers=headers, data=post_json)
+        response = await client.http_post(headers=headers, data=post_json)
     if not stream:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         if is_mock:
@@ -98,7 +99,7 @@ async def my_POST():
         async def echoChunk():
             all_msg = ''
             # 迭代输出流
-            for chunk in response:
+            async for chunk in response:
                 data = chunk.decode()
                 if res_type in [4, 5]:
                     pre_data = ''

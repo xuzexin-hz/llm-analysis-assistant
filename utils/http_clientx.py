@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import socket
@@ -64,15 +65,15 @@ class http_clientx:
                 self._header = headers
         return self._header
 
-    def http_get(self, headers=None, stream=False):
+    async def http_get(self, headers=None, stream=False):
         # 创建 HTTP 请求行
         request_line = f'GET {self.path} HTTP/1.1\r\n'
         data_line = "\r\n\r\n"
         if stream:
             return self.__private_method_stream(headers, request_line, data_line)
-        return self.__private_method(headers, request_line, data_line)
+        return await self.__private_method(headers, request_line, data_line)
 
-    def http_post(self, headers=None, data=None):
+    async def http_post(self, headers=None, data=None):
         # 创建 HTTP 请求行
         request_line = f'POST {self.path} HTTP/1.1\r\n'
         json_data = json.dumps(data)
@@ -84,9 +85,9 @@ class http_clientx:
             stream = data['stream']
         if stream:
             return self.__private_method_stream(headers, request_line, data_line)
-        return self.__private_method(headers, request_line, data_line)
+        return await self.__private_method(headers, request_line, data_line)
 
-    def __private_method_stream(self, headers, request_line, data_line):
+    async def __private_method_stream(self, headers, request_line, data_line):
         # 构建请求头
         custom_headers = self.headers
         # 添加自定义头
@@ -108,13 +109,14 @@ class http_clientx:
             # 发送header
             sock.sendall(headers_line)
             res_data = b''
+            reader, writer = await asyncio.open_connection(sock=sock)
             # 接收响应
             while True:
-                data = sock.recv(self.ITER_CHUNK_SIZE)
+                data = await reader.read(self.ITER_CHUNK_SIZE)
                 if not data:
                     break
                 res_data = self.__stream(res_data + data)
-                if self.HTTP_TYPE != "HTTP":
+                if self.HTTP_TYPE == "SSE":
                     yield res_data
                     res_data = b''
                     continue
@@ -152,7 +154,7 @@ class http_clientx:
                     break  # 0 表示结束
                 # 读取分块
                 chunk = body[length_pos + 2:length_pos + 2 + chunk_length]  # +2 是为了 skip '\r\n'
-                if self.HTTP_TYPE != "HTTP":
+                if self.HTTP_TYPE == "SSE":
                     return chunk
                 # 使用re.search来查找匹配项
                 matches = re.findall(self.RE_PATTERN, chunk, re.DOTALL)
@@ -167,7 +169,7 @@ class http_clientx:
         else:
             return body
 
-    def __private_method(self, headers, request_line, data_line):
+    async def __private_method(self, headers, request_line, data_line):
         # 构建请求头
         custom_headers = self.headers
         # 添加自定义头
@@ -190,15 +192,16 @@ class http_clientx:
             sock.sendall(headers_line)
             # 接收响应
             response = b""
+            reader, writer = await asyncio.open_connection(sock=sock)
             while True:
-                data = sock.recv(self.ITER_CHUNK_SIZE)
+                data = await reader.read(self.ITER_CHUNK_SIZE)
                 if not data:
                     break
                 response += data
         # 找到正文部分的开始位置
         res_headers, body = response.split(b'\r\n\r\n', 1)
         # 处理分块响应
-        if b'transfer-encoding: chunked' in response:
+        if b'transfer-encoding: chunked' in response.lower():
             # 解析分块
             chunks = []
             while body:

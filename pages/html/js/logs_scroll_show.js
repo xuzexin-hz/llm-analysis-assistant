@@ -40,6 +40,8 @@ ws.onmessage = (event) => {
                 style = 'color: blue;';
             } else if (json['type'] == 'res') {
                 style = 'color: green;';
+            } else if (json['type'] == 'rec') {
+                style = 'color: red;';
             }
             var formattedJson = JSON.stringify(data, null, 2);
             document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' + '<br/>';
