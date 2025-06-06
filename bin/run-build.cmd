@@ -1,2 +1,2 @@
 cd ../
-"py3.11\\Scripts\\pyinstaller" --name=llm-logs-analysis --onefile --clean --upx-dir="D:\\ProgramFile\\upx-5.0.0-win64" --icon=pages/html/imgs/favicon.ico --add-data "bin;bin" --add-data "pages;pages" --add-data "config/.gitignore;config/.gitignore" --add-data "docs;docs" --add-data "utils;utils" --add-data ".gitignore;." --add-data "LICENSE;." --add-data "README.md;." server.py
+".venv\Scripts\pyinstaller" --name=llm-logs-analysis --onefile --clean --upx-dir="D:\\ProgramFile\\upx-5.0.0-win64" --icon=pages/html/imgs/favicon.ico --add-data "bin;bin" --add-data "pages;pages" --add-data "config/.gitignore;config/.gitignore" --add-data "docs;docs" --add-data "utils;utils" --add-data ".gitignore;." --add-data "LICENSE;." --add-data "README.md;." server.py

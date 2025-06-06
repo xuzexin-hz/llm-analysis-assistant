@@ -89,7 +89,7 @@ async def read_body(receive):
 
 def print_logo():
     """Prints a logo to the console."""
-    logo = """
+    logo = r"""
                                                                                                
       ,---,                  ,--,      ,--,                          ,---,          ,----..       ,---, 
     ,--.' |                ,--.'|    ,--.'|                         '  .' \        /   /   \   ,`--.' | 
