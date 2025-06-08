@@ -1,7 +1,8 @@
 import asyncio
 
+from pages.mySSE import mySSE_sse
 from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
-    my_printBody, get_Res_Header
+    my_printBody, get_Res_Header, get_query, get_request_server
 from utils.http_clientx import http_clientx
 from utils.js_utils import js_show_page
 from utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
@@ -9,6 +10,7 @@ from utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
 
 async def my_GET():
     url_path = get_path()
+    num = get_num()
     if url_path == '/favicon.ico':
         await my_printHeader({"Content-Type": "image/x-icon",
                               "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -43,8 +45,12 @@ async def my_GET():
         # 浏览器请求
         if user_agent is not None and user_agent.startswith("Mozilla"):
             await js_show_page("mcp")
+        else:
+            http_url = get_query('url')
+            server = get_request_server()
+            await streamHeader()
+            await mySSE_sse(True, server.send, num, http_url)
     if http_url is not None:
-        num = get_num()
         write_httplog(LogType.GET, url_path, num)
         api_key = get_apikey()
         headers = {'Authorization': f'Bearer {api_key}'}

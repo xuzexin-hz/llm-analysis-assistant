@@ -10,4 +10,4 @@ async def js_show_page(js_name):
         lines = files.readlines()
     port = os.environ.get("port")
     js = ''.join(lines)
-    await my_printBody(f"<script>var ws_port={port};{js}</script>", True)
+    await my_printBody(f"<html><body><script>var ws_port={port};{js}</script></body></html>", True)

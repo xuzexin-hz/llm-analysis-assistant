@@ -114,14 +114,25 @@ model.invoke("Hello, world!")
 
 [langgraph-codeact.md](docs/langgraph-codeact.md)
 
-# 分析并简单调用mcp(目前支持sse和streamableHttp协议)
-例如打开下面地址，url为sse服务地址
-
-http://127.0.0.1:8000/mcp?url=http://127.0.0.1:3001/sse
+# 检测分析并调用mcp(目前支持sse和streamableHttp协议)
 
 ![mcp-sse.png](docs/imgs/mcp-sse.png)
 
+# 检测分析mcp-sse
+浏览器打开下面地址，url为sse服务地址
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
+
+或者使用Cherry Studio添加mcp服务
+
+![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
+
 # 检测分析mcp-streamable-http
+浏览器打开下面地址，url为streamableHttp服务地址
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+或者使用Cherry Studio添加mcp服务
 
 ![mcp-streamable-http.png](docs/imgs/mcp-streamable-http.png)
 

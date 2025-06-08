@@ -1,9 +1,10 @@
 import asyncio
 import json
+import os
 import re
 import time
 
-from utils.environ_utils import get_query, my_printBody
+from utils.environ_utils import get_query, my_printBody, get_md5, GlobalVal
 from utils.http_clientx import http_clientx
 from utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
 
@@ -27,10 +28,10 @@ def my_json(data):
         return None
 
 
-async def mySSE_sse(scope, receive_message, send, num, http_url):
+async def mySSE_sse(is_http, send, num, http_url):
+    os.environ["MCP_HTTP_URL"] = http_url
     try:
-        url_path = '/sse'
-        write_httplog(LogType.SSEQ, url_path, num)
+        write_httplog(LogType.SSEQ, http_url, num)
         if http_url is None:
             return
         client = http_clientx(http_url)
@@ -41,6 +42,21 @@ async def mySSE_sse(scope, receive_message, send, num, http_url):
             if ': ping' not in data and data != '':
                 jj = my_json(data)
                 if jj is not None:
+                    # sse 请求日志放到一起
+                    j = json.loads(jj)
+                    if j.get('event') and j.get('event') == 'endpoint':
+                        md5_str = get_md5(j.get('data'))
+                        GlobalVal.logsNumList[md5_str] = num
+                    # 非浏览器请求
+                    if is_http:
+                        await send({
+                            'type': 'http.response.body',
+                            'body': data.encode('utf-8'),
+                            'more_body': True
+                        })
+                        write_httplog(LogType.SSES, data + '\n\n', num)
+                        await asyncio.sleep(0)
+                        continue
                     try:
                         await send({
                             "type": "websocket.send",
@@ -50,15 +66,13 @@ async def mySSE_sse(scope, receive_message, send, num, http_url):
                         break
                     write_httplog(LogType.SSES, jj + '\n\n', num)
                     await asyncio.sleep(0)
-            else:
-                await asyncio.sleep(1)
     except Exception as e:
         pass
 
 
 async def mySSE_init(scope, receive_message, send, num):
     http_url = get_query('url')
-    task = asyncio.create_task(mySSE_sse(scope, receive_message, send, num, http_url))
+    task = asyncio.create_task(mySSE_sse(False, send, num, http_url))
     try:
         while True:
             await asyncio.sleep(2)
@@ -67,30 +81,25 @@ async def mySSE_init(scope, receive_message, send, num):
                 "type": "websocket.send",
                 'text': json.dumps({'event': 'ping', 'data': str(time.time())})
             })
-            coroutine_id = id(asyncio.current_task())
-            print(str(coroutine_id) + ":" + str(len(list(asyncio.all_tasks()))))
     except Exception as e:
         task.cancel()
         print(f"Connection error: {e}")
 
 
-async def mySSE_msg(data, num):
-    http_url = data['url']
+async def mySSE_msg(data, num, has_same_log, http_url):
     if http_url is None:
         return
     client = http_clientx(http_url)
-    if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resource/list',
+    if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resources/list',
                           'tools/call']:
         if 'url' in data:
             del data['url']
         headers = {'Content-Type': 'application/json'}
         try:
             response = await client.http_post(headers=headers, data=data)
-            jj = {}
-            jj['text'] = response.text
-            jj['method'] = data['method']
-            write_httplog(LogType.RES, json.dumps(jj), num)
-            write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
-            await my_printBody(json.dumps(jj), True)
+            write_httplog(LogType.RES, response.text, num)
+            if not has_same_log:
+                write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
+            await my_printBody(response.text, True)
         except Exception as e:
             pass

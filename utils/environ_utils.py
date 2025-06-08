@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import os
 from typing import Dict
@@ -7,6 +8,8 @@ from urllib.parse import parse_qs
 
 class GlobalVal:
     myHandlerList = {}
+    # 检测客户端sse时候日志记录到同一个文件中
+    logsNumList = {}
 
     @staticmethod
     def myHandler():
@@ -109,6 +112,11 @@ def get_request_num():
     return self.server.num
 
 
+def get_request_server():
+    self = GlobalVal.myHandler()
+    return self.server
+
+
 def get_apikey():
     self = GlobalVal.myHandler()
     if hasattr(self.server, 'API_KEY'):
@@ -141,3 +149,9 @@ async def get_favicon():
         # 打开并读取图片文件
         with open(image_path, 'rb') as image_file:
             await my_printBytes(image_file.read(), True)
+
+
+def get_md5(data):
+    md5 = hashlib.md5()
+    md5.update(data.encode('utf-8'))
+    return md5.hexdigest()

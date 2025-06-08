@@ -1,11 +1,13 @@
-document.addEventListener('DOMContentLoaded', function () {
+function load() {
     var newD = document.createElement('div');
     newD.className = 'container';
     document.body.appendChild(newD);
     var newP = document.createElement('p');
-    newP.className = 'sse';
+    newP.className = 'mcp';
     document.body.appendChild(newP);
-});
+    console.log('mcp html loaded');
+};
+load();
 
 function get_params(name, parent) {
     const urlString = location.origin + parent;
@@ -18,12 +20,16 @@ function get_params(name, parent) {
 var url = get_params('url', window.location.search);
 // sse ws 端口
 var mcp_session_url = '';
-// 显示请求响应日志的自增序号
+// html上显示请求响应日志的自增序号
 var num = 0;
-// sse 接口唯一标识
+// mcp 接口唯一标识
 var index = 0;
-// 工具调用时间显示集合
+// sse时,调用工具集合
 var tools_calls = {};
+// mcp streamable-http地址
+var mcp_href = null;
+// mcp streamable-http 附加头
+var mcp_headers_extra = {};
 
 function get_index() {
     index++;
@@ -31,16 +37,80 @@ function get_index() {
 }
 
 var mcp = new URL(url)
-if (url == null || !mcp.pathname.endsWith('/sse')) {
+
+async function mcp_streamable_http() {
+    mcp_href = location.href;
+    var json7 = {
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "llm-logs-analysis",
+                "version": "v0.1.2"
+            }
+        },
+        "jsonrpc": "2.0",
+        "id": get_index()
+    };
+    console.log('json7', json7);
+    var res = await sendSseMessage(json7);
+    var headers = res.headers;
+    var data = res.data;
+    var json8 = {
+        "method": "notifications/initialized",
+        "jsonrpc": "2.0"
+    };
+    console.log('json8', json8);
+    if (headers.get('mcp-session-id') != null) {
+        mcp_headers_extra = {
+            'mcp-session-id': headers.get('mcp-session-id')
+        }
+    }
+    await sendSseMessage(json8);
+    var json9 = {
+        "method": "tools/list",
+        "jsonrpc": "2.0",
+        "id": get_index()
+    };
+    console.log('json9', json9);
+    await sendSseMessage(json9, async function (headers, data) {
+        for (const tool of data.result.tools) {
+            await show_tool_2_html(tool, false);
+        }
+    });
+    var json10 = {
+        "method": "prompts/list",
+        "jsonrpc": "2.0",
+        "id": get_index()
+    };
+    console.log('json10', json10);
+    await sendSseMessage(json10, async function (headers, data) {
+
+    });
+    var json11 = {
+        "method": "resources/list",
+        "jsonrpc": "2.0",
+        "id": get_index()
+    };
+    console.log('json11', json11);
+    await sendSseMessage(json11, async function (headers, data) {
+
+    });
+}
+
+if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
     alert("url is null");
-} else {
+} else if (mcp.pathname.endsWith('/mcp')) {
+    mcp_streamable_http();
+} else if (mcp.pathname.endsWith('/sse')) {
     const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
     window.sse_WebSocket = sse_WebSocket;
     sse_WebSocket.onopen = () => {
         show_step('request', url);
         console.log('sse_WebSocket:Connected to WebSocket server');
     };
-    sse_WebSocket.onmessage = (event) => {
+    sse_WebSocket.onmessage = async (event) => {
         var json = isValidJSON(event.data);
         if (json) {
             if (json['event'] == 'ping') {
@@ -63,14 +133,14 @@ if (url == null || !mcp.pathname.endsWith('/sse')) {
                         },
                         "clientInfo": {
                             "name": "llm-logs-analysis",
-                            "version": "0.1.0"
+                            "version": "v0.1.2"
                         }
                     },
                     "jsonrpc": "2.0",
                     "id": get_index()
                 };
                 console.log('json1', json1);
-                sendSseMessage(json1);
+                await sendSseMessage(json1);
             } else {
                 var json = JSON.parse(json['data']);
                 if (json['result']['protocolVersion']) {
@@ -80,26 +150,28 @@ if (url == null || !mcp.pathname.endsWith('/sse')) {
                         "method": "notifications/initialized"
                     };
                     console.log('json2', json2);
-                    sendSseMessage(json2, function () {
+                    await sendSseMessage(json2, async function () {
                         if (json['result']['capabilities']['tools']) {
-                            next_step('tools');
+                            await next_step('tools');
                         }
                         if (json['result']['capabilities']['prompts']) {
-                            next_step('prompts');
+                            await next_step('prompts');
                         }
                         if (json['result']['capabilities']['resources']) {
-                            next_step('resources');
+                            await next_step('resources');
                         }
                     });
                 } else if (json['result']['tools']) {
-                    show_result('tools', json);
+                    await show_result('tools', json);
                 } else if (json['result']['content']) {
                     var func = tools_calls[json['id']];
                     console.log('tools_calls', tools_calls, json['id'], func);
                     if (func != null) {
                         func();
                     }
-                    alert('result is:' + json['result']['content'][0]['text']);
+                    if (json['result']['content'][0]['type'] == 'text') {
+                        alert('result is:' + json['result']['content'][0]['text']);
+                    }
                 }
             }
         }
@@ -150,10 +222,10 @@ function show_step(t, data) {
     }
     html = num + "、   ---" + t + ":" + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' +
         '<br/>';
-    document.querySelector('.sse').innerHTML += html;
+    document.querySelector('.mcp').innerHTML += html;
 }
 
-function next_step(type) {
+async function next_step(type) {
     if (type == 'tools') {
         var ii = get_index();
         var json3 = {
@@ -168,7 +240,7 @@ function next_step(type) {
             "id": ii
         }
         console.log('json3', json3);
-        sendSseMessage(json3);
+        await sendSseMessage(json3);
     } else if (type == 'prompts') {
         var ii = get_index();
         var json4 = {
@@ -183,7 +255,7 @@ function next_step(type) {
             "id": ii
         }
         console.log('json4', json4);
-        sendSseMessage(json4);
+        await sendSseMessage(json4);
     } else if (type == 'resources') {
         var ii = get_index();
         var json5 = {
@@ -198,104 +270,167 @@ function next_step(type) {
             "id": ii
         }
         console.log('json5', json5);
-        sendSseMessage(json5);
+        await sendSseMessage(json5);
     }
 }
 
-function show_result(type, data) {
+async function show_tool_2_html(tool, sse) {
     const toolsContainer = document.querySelector('.container');
+    const toolDiv = document.createElement('div');
+
+    const toolName = document.createElement('h2');
+    toolName.textContent = tool.name;
+    toolDiv.appendChild(toolName);
+
+    const toolDescription = document.createElement('p');
+    toolDescription.textContent = tool.description;
+    toolDiv.appendChild(toolDescription);
+
+    var button = document.createElement("button");
+    button.textContent = "test";
+    button.role = tool.name;
+    // 调用工具按钮点击事件
+    button.addEventListener("click", async function () {
+        var container = button.parentElement;
+        var inputs = container.querySelectorAll("input");
+        var inputData = {};
+        inputs.forEach(function (input) {
+            console.log(input.className, input.value);
+            var value = input.value;
+            if (input.getAttribute('ttype') == 'number') {
+                value = Number(input.value);
+            }
+            inputData[input.className] = value;
+        });
+        var jsonData = JSON.stringify(inputData);
+        console.log('jsonData', jsonData);
+        var ii = get_index();
+        var json6 = {
+            "jsonrpc": "2.0",
+            "id": ii,
+            "url": mcp_session_url,
+            "method": "tools/call",
+            "params": {
+                "_meta": {
+                    "progressToken": ii
+                },
+                "name": button.role,
+                "arguments": inputData
+            }
+        }
+        var tool_timer_time = 0;
+        var tool_timer = setInterval(function () {
+            tool_timer_time++;
+            button.textContent = tool_timer_time;
+        }, 1000);
+        tools_calls[ii] = function (data) {
+            button.textContent = "test";
+            clearInterval(tool_timer);
+        }
+        console.log('json6', json6);
+        await sendSseMessage(json6, function (headers, json) {
+            if (sse == false) {
+                var func = tools_calls[json['id']];
+                console.log('tools_calls', tools_calls, json['id'], func);
+                if (func != null) {
+                    func();
+                }
+                if (json['result']) {
+                    if (json['result']['content'][0]['type'] == 'text') {
+                        alert('result is:' + json['result']['content'][0]['text']);
+                    }
+                } else {
+                    alert('result is:' + json['params']['data']);
+                }
+            }
+        });
+    });
+    toolDiv.appendChild(button);
+    var propertie_index = 0;
+    var properties = tool.inputSchema.properties;
+    Object.keys(properties).forEach(function (propertie) {
+        const span = document.createElement('span');
+        propertie_index++;
+        var required = tool.inputSchema.required.includes(propertie);
+        console.log(propertie, required);
+        var required_span = '';
+        if (required) {
+            required_span = "<span style='color:red;'>*</span>";
+        }
+        span.innerHTML = "  " + propertie_index + "、 " + propertie + ":" + required_span + " ";
+        toolDiv.appendChild(span);
+
+        var toolInput = document.createElement('input');
+        // html 控件类型
+        if (properties[propertie].type == 'number') {
+            toolInput.type = 'number';
+        } else {
+            toolInput.type = 'input';
+        }
+
+        toolInput.className = propertie;
+        toolInput.setAttribute('ttype', properties[propertie].type);
+        if (properties[propertie].description) {
+            toolInput.setAttribute('placeholder', properties[propertie].description);
+        }
+        toolDiv.appendChild(toolInput);
+    });
+
+    toolsContainer.appendChild(toolDiv);
+}
+
+async function show_result(type, data) {
     var jsonData = data;
     console.log('show_result+' + type + ":", jsonData);
     if (type == 'tools') {
-        jsonData.result.tools.forEach(tool => {
-            const toolDiv = document.createElement('div');
-
-            const toolName = document.createElement('h2');
-            toolName.textContent = tool.name;
-            toolDiv.appendChild(toolName);
-
-            const toolDescription = document.createElement('p');
-            toolDescription.textContent = tool.description;
-            toolDiv.appendChild(toolDescription);
-
-            var button = document.createElement("button");
-            button.textContent = "test";
-            button.role = tool.name;
-            button.addEventListener("click", function () {
-                var container = button.parentElement;
-                var inputs = container.querySelectorAll("input");
-                var inputData = {};
-                inputs.forEach(function (input) {
-                    console.log(input.className, input.value);
-                    inputData[input.className] = input.value;
-                });
-                var jsonData = JSON.stringify(inputData);
-                console.log('jsonData', jsonData);
-                var ii = get_index();
-                var json6 = {
-                    "jsonrpc": "2.0",
-                    "id": ii,
-                    "url": mcp_session_url,
-                    "method": "tools/call",
-                    "params": {
-                        "_meta": {"progressToken": ii},
-                        "name": button.role,
-                        "arguments": inputData
-                    }
-                }
-                console.log('json6', json6);
-                sendSseMessage(json6);
-                var tool_timer_time = 0;
-                var tool_timer = setInterval(function () {
-                    tool_timer_time++;
-                    button.textContent = tool_timer_time;
-                }, 1000);
-                tools_calls[ii] = function (data) {
-                    button.textContent = "test";
-                    clearInterval(tool_timer);
-                }
-            });
-            toolDiv.appendChild(button);
-            var element_index = 0;
-            for (element in tool.inputSchema.properties) {
-                const span = document.createElement('span');
-                element_index++;
-                span.textContent = "  " + element_index + "、 " + element + ": ";
-                toolDiv.appendChild(span);
-
-                const toolInput = document.createElement('input');
-                toolInput.type = 'input';
-                toolInput.className = element;
-                toolDiv.appendChild(toolInput);
-            }
-
-            toolsContainer.appendChild(toolDiv);
-        });
+        for (const tool of jsonData.result.tools) {
+            await show_tool_2_html(tool, true);
+        }
     }
 }
 
-function sendSseMessage(jsonData, func) {
+async function sendSseMessage(jsonData, func) {
     show_step('request', jsonData);
-    const url = '/mcp_msg';
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(jsonData)
-    })
+    var url = '/mcp_msg';
+    if (mcp_href != null) {
+        url = mcp_href;
+    }
+    headers = {
+        'Content-Type': 'application/json'
+    };
+    const mergedHeaders = Object.assign({}, headers, mcp_headers_extra);
+    return await fetch(url, {
+            method: 'POST',
+            headers: mergedHeaders,
+            body: JSON.stringify(jsonData)
+        })
         .then(response => {
             if (!response.ok) {
                 // 如果响应状态不为 2xx，抛出异常
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
+            const headers = response.headers;
+            return response.text().then(data => ({
+                headers: headers,
+                data: data
+            }));
         })
-        .then(data => {
+        .then(({
+            headers,
+            data
+        }) => {
+            // 若是json就转成json对象
+            if (isValidJSON(data)) {
+                data = JSON.parse(data);
+            }
             show_step('response', data);
             console.log('Success:', data);
             if (func) {
-                func();
+                func(headers, data);
+            }
+            return {
+                headers: headers,
+                data: data
             }
         })
         .catch(error => {
