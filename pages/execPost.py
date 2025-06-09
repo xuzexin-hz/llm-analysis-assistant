@@ -23,13 +23,13 @@ async def my_POST():
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
     # msc sse的网页调用
-    if '/mcp_msg' in url_path or '/messages/' in url_path:
+    if '/mcp_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         http_url = post_json.get('url')
         if http_url is None and os.environ.get("MCP_HTTP_URL") is not None:
             parsed_url = urlparse(os.environ.get("MCP_HTTP_URL"))
             http_url = parsed_url.scheme + "://" + parsed_url.netloc + '' + url_path
-        if '/messages/' in url_path:
+        if '/messages/' in url_path or '/message?' in url_path:
             md5_str = get_md5(url_path)
         elif '/mcp_msg' in url_path:
             parsed_url = urlparse(post_json.get('url'))

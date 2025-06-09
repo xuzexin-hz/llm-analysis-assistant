@@ -100,16 +100,18 @@ class http_clientx:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             if self.scheme == 'https':
                 # 使用 SSL 包装 socket
-                context = ssl.create_default_context()
-                sock = context.wrap_socket(sock, server_hostname=self.hostname)
-            # 连接到服务器
-            sock.connect((self.hostname, self.port))
+                try:
+                    context = ssl.create_default_context()
+                    reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port, ssl=context)
+                except Exception as e:
+                    pass
+            else:
+                reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port)
             headers_line = request_line.encode('utf-8') + headers_string.encode('utf-8') + data_line.encode(
                 'utf-8')
             # 发送header
-            sock.sendall(headers_line)
+            writer.write(headers_line)
             res_data = b''
-            reader, writer = await asyncio.open_connection(sock=sock)
             # 接收响应
             while True:
                 data = await reader.read(self.ITER_CHUNK_SIZE)
@@ -180,19 +182,21 @@ class http_clientx:
         headers_string = '\r\n'.join(custom_headers)
         # 创建一个 TCP socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            if self.scheme == 'https':  # HTTPS连接
+            if self.scheme == 'https':
                 # 使用 SSL 包装 socket
-                context = ssl.create_default_context()
-                sock = context.wrap_socket(sock, server_hostname=self.hostname)
-            # 连接到服务器
-            sock.connect((self.hostname, self.port))
+                try:
+                    context = ssl.create_default_context()
+                    reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port, ssl=context)
+                except Exception as e:
+                    pass
+            else:
+                reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port)
             headers_line = request_line.encode('utf-8') + headers_string.encode('utf-8') + data_line.encode(
                 'utf-8')
             # 发送header
-            sock.sendall(headers_line)
+            writer.write(headers_line)
             # 接收响应
             response = b""
-            reader, writer = await asyncio.open_connection(sock=sock)
             while True:
                 data = await reader.read(self.ITER_CHUNK_SIZE)
                 if not data:
