@@ -6,10 +6,90 @@ function load() {
     newP.className = 'mcp';
     document.body.appendChild(newP);
     console.log('mcp html loaded');
+
+    const container = document.querySelector('.container');
+    const table = document.createElement('table');
+    table.className = 'container-table';
+    table.style="border-spacing: 4px 24px;";
+    container.appendChild(table);
+    const style = document.createElement("style");
+    //按钮点击后的扫灯效果
+    style.innerText =
+        `
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        @keyframes rotate {
+            100% {
+                transform: rotate(1turn);
+            }
+        }
+        .button {
+            position: relative;
+            z-index: 0;
+            overflow: hidden;
+            &::before {
+                content:'';
+                position: absolute;
+                z-index: -2;
+                left: -50%;
+                top: -50%;
+                width: 200%;
+                height: 200%;
+                background-color: #1a232a;
+                background-repeat: no-repeat;
+                background-position: 0 0;
+                background-image: conic-gradient(transparent, rgba(168, 239, 255, 1), transparent 30%);
+                animation: rotate 4s linear infinite;
+            }
+            &::after {
+                content:'';
+                position: absolute;
+                z-index: -1;
+                left: 6px;
+                top: 6px;
+                width: calc(100% - 1px);
+                height: calc(100% - 1px);
+                border-radius: 5px;
+            }
+        }
+        .button::after {
+            animation: opacityChange 5s infinite linear;
+        }
+        @keyframes opacityChange {
+            50% {
+                opacity:.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+    `;
+    document.body.appendChild(style);
 };
+
+function mcp2html(type) {
+    const table = document.querySelector('.container-table');
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td');
+    const td2 = document.createElement('td');
+    td1.style = "border: 1px dotted;";
+    if (type == 'tools') {
+        td1.innerHTML = "Tool集合";
+        td2.className = "tools";
+
+    } else if (type == 'prompts') {
+        td1.innerHTML = "prompt集合";
+        td2.className = "prompts";
+    }
+    td2.style = "padding-left: 28px;";
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    table.appendChild(tr);
+}
 load();
 
-function get_params(name, parent) {
+function getParams(name, parent) {
     const urlString = location.origin + parent;
     const url = new URL(urlString);
     const params = new URLSearchParams(url.search);
@@ -17,28 +97,28 @@ function get_params(name, parent) {
 }
 
 // sse url
-var url = get_params('url', window.location.search);
+var url = getParams('url', window.location.search);
 // sse ws 端口
 var mcp_session_url = '';
 // html上显示请求响应日志的自增序号
 var num = 0;
 // mcp 接口唯一标识
 var index = 0;
-// sse时,调用工具集合
-var tools_calls = {};
+// mcp调用集合
+var mcp_calls = {};
 // mcp streamable-http地址
 var mcp_href = null;
 // mcp streamable-http 附加头
 var mcp_headers_extra = {};
 
-function get_index() {
+function getIndex() {
     index++;
     return index;
 }
 
 var mcp = new URL(url)
 
-async function mcp_streamable_http() {
+async function mcpStreamableHttp() {
     mcp_href = location.href;
     var json7 = {
         "method": "initialize",
@@ -51,7 +131,7 @@ async function mcp_streamable_http() {
             }
         },
         "jsonrpc": "2.0",
-        "id": get_index()
+        "id": getIndex()
     };
     console.log('json7', json7);
     var res = await sendSseMessage(json7);
@@ -71,27 +151,31 @@ async function mcp_streamable_http() {
     var json9 = {
         "method": "tools/list",
         "jsonrpc": "2.0",
-        "id": get_index()
+        "id": getIndex()
     };
     console.log('json9', json9);
     await sendSseMessage(json9, async function (headers, data) {
+        mcp2html("tools");
         for (const tool of data.result.tools) {
-            await show_tool_2_html(tool, false);
+            await showItem2Html("tools", tool, false);
         }
     });
     var json10 = {
         "method": "prompts/list",
         "jsonrpc": "2.0",
-        "id": get_index()
+        "id": getIndex()
     };
     console.log('json10', json10);
     await sendSseMessage(json10, async function (headers, data) {
-
+        mcp2html("prompts");
+        for (const prompt of data.result.prompts) {
+            await showItem2Html("prompts", prompt, false);
+        }
     });
     var json11 = {
         "method": "resources/list",
         "jsonrpc": "2.0",
-        "id": get_index()
+        "id": getIndex()
     };
     console.log('json11', json11);
     await sendSseMessage(json11, async function (headers, data) {
@@ -102,12 +186,12 @@ async function mcp_streamable_http() {
 if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
     alert("url is null");
 } else if (mcp.pathname.endsWith('/mcp')) {
-    mcp_streamable_http();
+    mcpStreamableHttp();
 } else if (mcp.pathname.endsWith('/sse')) {
     const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
     window.sse_WebSocket = sse_WebSocket;
     sse_WebSocket.onopen = () => {
-        show_step('request', url);
+        showStep('request', url);
         console.log('sse_WebSocket:Connected to WebSocket server');
     };
     sse_WebSocket.onmessage = async (event) => {
@@ -117,7 +201,7 @@ if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mc
                 return;
             }
             console.log('sse_WebSocket', event.data);
-            show_step('response', event.data);
+            showStep('response', event.data);
             if (json['event'] == 'endpoint') {
                 mcp_session_url = (new URL(url)).origin + json['data'];
                 var json1 = {
@@ -137,7 +221,7 @@ if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mc
                         }
                     },
                     "jsonrpc": "2.0",
-                    "id": get_index()
+                    "id": getIndex()
                 };
                 console.log('json1', json1);
                 await sendSseMessage(json1);
@@ -152,27 +236,40 @@ if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mc
                     console.log('json2', json2);
                     await sendSseMessage(json2, async function () {
                         if (json['result']['capabilities']['tools']) {
-                            await next_step('tools');
+                            await nextStep('tools');
                         }
                         if (json['result']['capabilities']['prompts']) {
-                            await next_step('prompts');
+                            await nextStep('prompts');
                         }
                         if (json['result']['capabilities']['resources']) {
-                            await next_step('resources');
+                            await nextStep('resources');
                         }
                     });
                 } else if (json['result']['tools']) {
-                    await show_result('tools', json);
+                    await showSseResult('tools', json);
+                } else if (json['result']['prompts']) {
+                    await showSseResult('prompts', json);
+                  //tool调用结果
                 } else if (json['result']['content']) {
-                    var func = tools_calls[json['id']];
-                    console.log('tools_calls', tools_calls, json['id'], func);
+                    var func = mcp_calls[json['id']];
+                    console.log('mcp_calls', mcp_calls, json['id'], func);
                     if (func != null) {
                         func();
                     }
                     if (json['result']['content'][0]['type'] == 'text') {
                         alert('result is:' + json['result']['content'][0]['text']);
                     }
-                }
+                    //prompts调用结果
+                } else if (json['result']['messages']) {
+                    var func = mcp_calls[json['id']];
+                    console.log('mcp_calls', mcp_calls, json['id'], func);
+                    if (func != null) {
+                        func();
+                    }
+                    if (json['result']['messages'][0]['content']['type'] == 'text') {
+                        alert('result is:' + json['result']['messages'][0]['content']['text']);
+                    }
+                }console.log('2025',json['result']);
             }
         }
     };
@@ -196,9 +293,9 @@ function isValidJSON(obj) {
     }
 }
 
-function show_step(t, data) {
+function showStep(t, data) {
     num = num + 1;
-    console.log('show_step+' + t + ":", data);
+    console.log('showStep+' + t + ":", data);
     var json = isValidJSON(data);
     var html = '';
     var style = '';
@@ -215,7 +312,7 @@ function show_step(t, data) {
                 json['data'] = jj;
             }
         }
-        console.log('show_step2', json);
+        console.log('showStep2', json);
         formattedJson = JSON.stringify(json, null, 2);
     } else {
         formattedJson = data;
@@ -225,9 +322,9 @@ function show_step(t, data) {
     document.querySelector('.mcp').innerHTML += html;
 }
 
-async function next_step(type) {
+async function nextStep(type) {
     if (type == 'tools') {
-        var ii = get_index();
+        var ii = getIndex();
         var json3 = {
             "url": mcp_session_url,
             "method": "tools/list",
@@ -242,7 +339,7 @@ async function next_step(type) {
         console.log('json3', json3);
         await sendSseMessage(json3);
     } else if (type == 'prompts') {
-        var ii = get_index();
+        var ii = getIndex();
         var json4 = {
             "url": mcp_session_url,
             "method": "prompts/list",
@@ -257,7 +354,7 @@ async function next_step(type) {
         console.log('json4', json4);
         await sendSseMessage(json4);
     } else if (type == 'resources') {
-        var ii = get_index();
+        var ii = getIndex();
         var json5 = {
             "url": mcp_session_url,
             "method": "resources/list",
@@ -274,23 +371,27 @@ async function next_step(type) {
     }
 }
 
-async function show_tool_2_html(tool, sse) {
-    const toolsContainer = document.querySelector('.container');
-    const toolDiv = document.createElement('div');
+async function showItem2Html(type, item, sse) {
 
-    const toolName = document.createElement('h2');
-    toolName.textContent = tool.name;
-    toolDiv.appendChild(toolName);
+    const containerTd = document.querySelector('.' + type);
 
-    const toolDescription = document.createElement('p');
-    toolDescription.textContent = tool.description;
-    toolDiv.appendChild(toolDescription);
+    const itemDiv = document.createElement('div');
+
+    const itemName = document.createElement('h2');
+    itemName.textContent = item.name;
+    itemDiv.appendChild(itemName);
+
+    const itemDescription = document.createElement('p');
+    itemDescription.textContent = item.description;
+    itemDiv.appendChild(itemDescription);
 
     var button = document.createElement("button");
     button.textContent = "test";
-    button.role = tool.name;
+    button.role = item.name;
+    button.style = "width:36px;height:25px;";
     // 调用工具按钮点击事件
     button.addEventListener("click", async function () {
+        button.className = "button";
         var container = button.parentElement;
         var inputs = container.querySelectorAll("input");
         var inputData = {};
@@ -304,40 +405,65 @@ async function show_tool_2_html(tool, sse) {
         });
         var jsonData = JSON.stringify(inputData);
         console.log('jsonData', jsonData);
-        var ii = get_index();
-        var json6 = {
-            "jsonrpc": "2.0",
-            "id": ii,
-            "url": mcp_session_url,
-            "method": "tools/call",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                },
-                "name": button.role,
-                "arguments": inputData
+        var json6 = null;
+        var ii = getIndex();
+        if (type == "tools") {
+            json6 = {
+                "jsonrpc": "2.0",
+                "id": ii,
+                "url": mcp_session_url,
+                "method": "tools/call",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    },
+                    "name": button.role,
+                    "arguments": inputData
+                }
+            }
+        } else if (type == "prompts") {
+            json6 = {
+                "jsonrpc": "2.0",
+                "id": ii,
+                "url": mcp_session_url,
+                "method": "prompts/get",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    },
+                    "name": button.role,
+                    "arguments": inputData
+                }
             }
         }
-        var tool_timer_time = 0;
-        var tool_timer = setInterval(function () {
-            tool_timer_time++;
-            button.textContent = tool_timer_time;
+
+        var item_timer_time = 0;
+        var item_timer = setInterval(function () {
+            item_timer_time++;
+            button.textContent = item_timer_time;
         }, 1000);
-        tools_calls[ii] = function (data) {
+        mcp_calls[ii] = function (data) {
             button.textContent = "test";
-            clearInterval(tool_timer);
+            button.className = "";
+            clearInterval(item_timer);
         }
         console.log('json6', json6);
         await sendSseMessage(json6, function (headers, json) {
             if (sse == false) {
-                var func = tools_calls[json['id']];
-                console.log('tools_calls', tools_calls, json['id'], func);
+                var func = mcp_calls[json['id']];
+                console.log('mcp_calls', mcp_calls, json['id'], func);
                 if (func != null) {
                     func();
                 }
                 if (json['result']) {
-                    if (json['result']['content'][0]['type'] == 'text') {
-                        alert('result is:' + json['result']['content'][0]['text']);
+                    if (type == "tools") {
+                        if (json['result']['content'][0]['type'] == 'text') {
+                            alert('result is:' + json['result']['content'][0]['text']);
+                        }
+                    } else if (type == "prompts") {
+                        if (json['result']['messages'][0]['content']['type'] == 'text') {
+                            alert('result is:' + json['result']['messages'][0]['content']['text']);
+                        }
                     }
                 } else {
                     alert('result is:' + json['params']['data']);
@@ -345,52 +471,79 @@ async function show_tool_2_html(tool, sse) {
             }
         });
     });
-    toolDiv.appendChild(button);
+    itemDiv.appendChild(button);
     var propertie_index = 0;
-    var properties = tool.inputSchema.properties;
-    Object.keys(properties).forEach(function (propertie) {
+    var properties = null;
+
+    function createPropertie(type, propertie) {
         const span = document.createElement('span');
         propertie_index++;
-        var required = tool.inputSchema.required.includes(propertie);
+        var required = null;
+        if (type == "tools") {
+            required = item.inputSchema.required.includes(propertie);
+        } else if (type == "prompts") {
+            required = propertie.required;
+        }
         console.log(propertie, required);
         var required_span = '';
         if (required) {
             required_span = "<span style='color:red;'>*</span>";
         }
-        span.innerHTML = "  " + propertie_index + "、 " + propertie + ":" + required_span + " ";
-        toolDiv.appendChild(span);
+        var name = propertie.hasOwnProperty('name') ? propertie.name : propertie;
+        span.innerHTML = "  " + propertie_index + "、 " + name + ":" + required_span + " ";
+        itemDiv.appendChild(span);
 
-        var toolInput = document.createElement('input');
+        var itemInput = document.createElement('input');
         // html 控件类型
-        if (properties[propertie].type == 'number') {
-            toolInput.type = 'number';
+        var propertiesType = '';
+        if (properties[propertie] != null && properties[propertie].type == 'number') {
+            itemInput.type = 'number';
+            propertiesType = 'number';
         } else {
-            toolInput.type = 'input';
+            itemInput.type = 'input';
+            propertiesType = 'text';
         }
 
-        toolInput.className = propertie;
-        toolInput.setAttribute('ttype', properties[propertie].type);
-        if (properties[propertie].description) {
-            toolInput.setAttribute('placeholder', properties[propertie].description);
+        itemInput.className = name;
+        itemInput.setAttribute('ttype', propertiesType);
+        if (propertie.hasOwnProperty('description')) {
+            itemInput.setAttribute('placeholder', properties[propertie].description);
         }
-        toolDiv.appendChild(toolInput);
-    });
+        itemDiv.appendChild(itemInput);
+    }
+    if (type == "tools") {
+        properties = item.inputSchema.properties;
+        Object.keys(properties).forEach(function (propertie) {
+            createPropertie(type, propertie);
+        });
+    } else if (type == "prompts") {
+        properties = item.arguments;
+        properties.forEach(function (propertie) {
+            createPropertie(type, propertie);
+        });
+    }
 
-    toolsContainer.appendChild(toolDiv);
+    containerTd.appendChild(itemDiv);
 }
 
-async function show_result(type, data) {
+async function showSseResult(type, data) {
     var jsonData = data;
-    console.log('show_result+' + type + ":", jsonData);
+    console.log('showSseResult+' + type + ":", jsonData);
     if (type == 'tools') {
+        mcp2html(type);
         for (const tool of jsonData.result.tools) {
-            await show_tool_2_html(tool, true);
+            await showItem2Html(type, tool, true);
+        }
+    } else if (type == 'prompts') {
+        mcp2html(type);
+        for (const tool of jsonData.result.prompts) {
+            await showItem2Html(type, tool, true);
         }
     }
 }
 
 async function sendSseMessage(jsonData, func) {
-    show_step('request', jsonData);
+    showStep('request', jsonData);
     var url = '/mcp_msg';
     if (mcp_href != null) {
         url = mcp_href;
@@ -423,7 +576,7 @@ async function sendSseMessage(jsonData, func) {
             if (isValidJSON(data)) {
                 data = JSON.parse(data);
             }
-            show_step('response', data);
+            showStep('response', data);
             console.log('Success:', data);
             if (func) {
                 func(headers, data);
