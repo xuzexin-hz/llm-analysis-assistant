@@ -19,7 +19,7 @@
 
 其他平台请自行查阅
 
-### 本项目采用python的BaseHTTPRequestHandler提供API服务，以最小的依赖，快速而简洁地运行，致敬经典
+### 本项目采用python的uvicorn启动asgi提供API服务，以最小的依赖，快速而简洁地运行，致敬经典
 
 # 3、安装所需扩展
 
@@ -31,7 +31,7 @@ pip install uvicorn
 
 # 4、用法
 进入根目录，然后进入bin目录
-点击run-server.bat,就可以启动cgi服务
+点击run-server.bat,就可以启动服务
 
 或者在跟目录直接运行:
 ```sh
@@ -40,10 +40,10 @@ pip install uvicorn
 python server.py
 
 #也可以指定端口
-python server.py --port=8001
+python server.py --port 8001
 
 #也可以指定openai地址,默认是ollama的地址：http://127.0.0.1:11434/v1/
-python server.py --base_url=https://api.openai.com
+python server.py --base_url https://api.openai.com
 #若配置其他api地址，记得要填写准确的api_key,ollama默认是不需要api_key的
 
 #-mock true or --is_mock true 开启mock，可以返回模拟数据
@@ -113,6 +113,30 @@ model.invoke("Hello, world!")
 ![langgraph-codeact1.png](docs/imgs/langgraph-codeact1.png)
 
 [langgraph-codeact.md](docs/langgraph-codeact.md)
+
+# 检测分析并调用mcp(目前支持sse和streamableHttp协议)
+
+![mcp-sse.png](docs/imgs/mcp-sse.png)
+
+# 检测分析mcp-sse
+浏览器打开下面地址，url为sse服务地址
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
+
+或者使用Cherry Studio添加mcp服务
+
+![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
+
+# 检测分析mcp-streamable-http
+浏览器打开下面地址，url为streamableHttp服务地址
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+或者使用Cherry Studio添加mcp服务
+
+![mcp-streamable-http.png](docs/imgs/mcp-streamable-http.png)
+
+然后通过实时查看日志来分析mcp-streamable-http逻辑
 
 # License
 [Apache 2.0 License.](LICENSE)

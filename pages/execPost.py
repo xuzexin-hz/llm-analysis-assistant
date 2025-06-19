@@ -1,9 +1,12 @@
 import asyncio
 import json
 import os
+from urllib.parse import urlparse
 
+from pages.myMCP import myMCP_msg
+from pages.mySSE import mySSE_msg
 from utils.environ_utils import get_path, streamHeader, get_apikey, get_base_url, my_printHeader, my_printBody, \
-    get_request_json
+    get_request_json, get_md5, GlobalVal
 from utils.http_clientx import http_clientx
 from utils.logs_utils import get_num, write_httplog, LOG_END_SYMBOL, LogType
 from utils.mock_utils import create_staticStream, create_staticData
@@ -13,21 +16,45 @@ async def my_POST():
     api_key = get_apikey()
     base_url = get_base_url()
     url_path = get_path()
-    num = get_num()
-    write_httplog(LogType.POST, url_path, num)
     post_json = get_request_json()
     model = post_json.get('model')
     stream = post_json.get('stream')
     if stream is None:
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
+    # msc sse的网页调用
+    if '/mcp_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
+        await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
+        http_url = post_json.get('url')
+        if http_url is None and os.environ.get("MCP_HTTP_URL") is not None:
+            parsed_url = urlparse(os.environ.get("MCP_HTTP_URL"))
+            http_url = parsed_url.scheme + "://" + parsed_url.netloc + '' + url_path
+        if '/messages/' in url_path or '/message?' in url_path:
+            md5_str = get_md5(url_path)
+        elif '/mcp_msg' in url_path:
+            parsed_url = urlparse(post_json.get('url'))
+            md5_str = get_md5(parsed_url.path + "?" + parsed_url.query)
+        has_same_log = False
+        if GlobalVal.logsNumList.get(md5_str) is not None:
+            same_num = GlobalVal.logsNumList.get(md5_str)
+            has_same_log = True
+        else:
+            same_num = get_num()
+        write_httplog(LogType.POST, http_url, same_num)
+        write_httplog(LogType.REQ, req_str, same_num)
+        await mySSE_msg(post_json, same_num, has_same_log, http_url)
+        return
+    num = get_num()
+    write_httplog(LogType.POST, url_path, num)
     write_httplog(LogType.REQ, req_str, num)
-
+    if '/mcp' in url_path:
+        await myMCP_msg(post_json, num)
+        return
     is_mock_str = os.environ.get("IS_MOCK")
     res_type = None
     if '/v1/completions' in url_path:
         res_type = 1
-    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path:
+    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path or '/v1/responses' in url_path:
         res_type = 2
     elif '/completions' in url_path:
         res_type = 1
@@ -74,7 +101,7 @@ async def my_POST():
         pass
     else:
         client = http_clientx(http_url)
-        response = client.http_post(headers=headers, data=post_json)
+        response = await client.http_post(headers=headers, data=post_json)
     if not stream:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         if is_mock:
@@ -90,7 +117,7 @@ async def my_POST():
         async def echoChunk():
             all_msg = ''
             # 迭代输出流
-            for chunk in response:
+            async for chunk in response:
                 data = chunk.decode()
                 if res_type in [4, 5]:
                     pre_data = ''

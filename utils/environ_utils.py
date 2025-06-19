@@ -1,11 +1,15 @@
 import asyncio
+import hashlib
 import json
 import os
 from typing import Dict
+from urllib.parse import parse_qs
 
 
 class GlobalVal:
     myHandlerList = {}
+    # 检测客户端sse时候日志记录到同一个文件中
+    logsNumList = {}
 
     @staticmethod
     def myHandler():
@@ -31,7 +35,7 @@ async def my_printBody(body: str, end_body=False):
                 'type': 'http.response.body',
                 'body': b'',
             })
-    except (Exception):
+    except Exception as e:
         pass
 
 
@@ -51,6 +55,7 @@ async def my_printBytes(body: bytes, end_body=False):
     except (Exception):
         pass
 
+
 async def my_printBodyWS(body: str):
     self = GlobalVal.myHandler()
     try:
@@ -60,6 +65,7 @@ async def my_printBodyWS(body: str):
         })
     except (Exception):
         pass
+
 
 async def my_printHeader(headers_dict: Dict):
     self = GlobalVal.myHandler()
@@ -71,6 +77,13 @@ async def my_printHeader(headers_dict: Dict):
     })
 
 
+def get_Res_Header(name: str):
+    self = GlobalVal.myHandler()
+    headers_dict = dict(self.server.scope['headers'])
+    headers = {key.decode('utf-8'): value.decode('utf-8') for key, value in headers_dict.items()}
+    return headers.get(name)
+
+
 def get_request_json():
     self = GlobalVal.myHandler()
     body = self.server.HTTP_REQUEST_BODY
@@ -80,6 +93,28 @@ def get_request_json():
 def get_path():
     self = GlobalVal.myHandler()
     return self.server.PATH_INFO
+
+
+def get_query(name):
+    self = GlobalVal.myHandler()
+    query_string = self.server.scope['query_string']
+    # 先将字节串解码为字符串
+    query_string_str = query_string.decode('utf-8')
+    # 使用 parse_qs 解析查询字符串
+    params = parse_qs(query_string_str)
+    # 获取 url 参数
+    url = params.get(name, [None])[0]  # get 方法返回一个列表，取第一个元素
+    return url
+
+
+def get_request_num():
+    self = GlobalVal.myHandler()
+    return self.server.num
+
+
+def get_request_server():
+    self = GlobalVal.myHandler()
+    return self.server
 
 
 def get_apikey():
@@ -114,3 +149,9 @@ async def get_favicon():
         # 打开并读取图片文件
         with open(image_path, 'rb') as image_file:
             await my_printBytes(image_file.read(), True)
+
+
+def get_md5(data):
+    md5 = hashlib.md5()
+    md5.update(data.encode('utf-8'))
+    return md5.hexdigest()

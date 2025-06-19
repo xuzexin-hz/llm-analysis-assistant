@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 import socket
@@ -7,10 +8,11 @@ from urllib.parse import urlparse
 
 class http_clientx:
     IS_STREAM = False
-    ITER_CHUNK_SIZE = 4096
+    ITER_CHUNK_SIZE = 40960
     # RE_PATTERN = rb'data:\s*(\{.*?\})\s*\n\n'
     # 兼容ollama格式
     RE_PATTERN = rb'(?:data:\s*)?(\{.*?\})\s*\n{1,2}'
+    HTTP_TYPE = "HTTP"
 
     def __init__(self, url):
         self.url = url
@@ -18,7 +20,10 @@ class http_clientx:
         self.hostname = parsed_url.hostname
         self.scheme = parsed_url.scheme
         self.port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
-        self.path = parsed_url.path if parsed_url.path else '/'
+        # self.path = parsed_url.path if parsed_url.path else '/'
+        hostname = url.split("//")[-1].split("/")[0]  # 获取主机名
+        # 兼容post的url中带参数
+        self.path = url.split(hostname, 1)[1]
         self.headers = [f'Host: {self.hostname}', 'Connection: close']
 
     @property
@@ -38,15 +43,37 @@ class http_clientx:
                 json_data = json.loads(json_str)  # 解析JSON
                 self._json = json_data
             except json.JSONDecodeError:
+                return None
                 print("JSON解析失败，返回的内容不合法。")
         return self._json
 
-    def http_get(self, headers=None):
+    @property
+    def header(self):
+        if not hasattr(self, "_header"):
+            header = self.response_headers
+            if not header:
+                self._header = []
+            else:
+                headers = {}
+                # 将原始字符串按行分割
+                lines = header.strip().split('\r\n')
+                # 跳过第一行（状态行）
+                for line in lines[1:]:
+                    # 分割 key 和 value
+                    key, value = line.split(': ', 1)
+                    headers[key.lower()] = value  # 转换为小写以便统一处理
+                self._header = headers
+        return self._header
+
+    async def http_get(self, headers=None, stream=False):
         # 创建 HTTP 请求行
         request_line = f'GET {self.path} HTTP/1.1\r\n'
-        return self.__private_method(headers, request_line, "\r\n\r\n")
+        data_line = "\r\n\r\n"
+        if stream:
+            return self.__private_method_stream(headers, request_line, data_line)
+        return await self.__private_method(headers, request_line, data_line)
 
-    def http_post(self, headers=None, data=None):
+    async def http_post(self, headers=None, data=None):
         # 创建 HTTP 请求行
         request_line = f'POST {self.path} HTTP/1.1\r\n'
         json_data = json.dumps(data)
@@ -58,9 +85,9 @@ class http_clientx:
             stream = data['stream']
         if stream:
             return self.__private_method_stream(headers, request_line, data_line)
-        return self.__private_method(headers, request_line, data_line)
+        return await self.__private_method(headers, request_line, data_line)
 
-    def __private_method_stream(self, headers, request_line, data_line):
+    async def __private_method_stream(self, headers, request_line, data_line):
         # 构建请求头
         custom_headers = self.headers
         # 添加自定义头
@@ -73,21 +100,28 @@ class http_clientx:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             if self.scheme == 'https':
                 # 使用 SSL 包装 socket
-                context = ssl.create_default_context()
-                sock = context.wrap_socket(sock, server_hostname=self.hostname)
-            # 连接到服务器
-            sock.connect((self.hostname, self.port))
+                try:
+                    context = ssl.create_default_context()
+                    reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port, ssl=context)
+                except Exception as e:
+                    pass
+            else:
+                reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port)
             headers_line = request_line.encode('utf-8') + headers_string.encode('utf-8') + data_line.encode(
                 'utf-8')
             # 发送header
-            sock.sendall(headers_line)
+            writer.write(headers_line)
             res_data = b''
             # 接收响应
             while True:
-                data = sock.recv(self.ITER_CHUNK_SIZE)
+                data = await reader.read(self.ITER_CHUNK_SIZE)
                 if not data:
                     break
                 res_data = self.__stream(res_data + data)
+                if self.HTTP_TYPE == "SSE":
+                    yield res_data
+                    res_data = b''
+                    continue
                 # 使用re.search来查找匹配项
                 matches = re.findall(self.RE_PATTERN, res_data, re.DOTALL)
                 if matches:
@@ -106,7 +140,7 @@ class http_clientx:
         else:
             body = data
         # 处理分块响应
-        if b'Transfer-Encoding: chunked' in data or self.IS_STREAM:
+        if b'transfer-encoding: chunked' in data.lower() or self.IS_STREAM:
             self.IS_STREAM = True
             # 解析分块
             chunks = []
@@ -122,6 +156,8 @@ class http_clientx:
                     break  # 0 表示结束
                 # 读取分块
                 chunk = body[length_pos + 2:length_pos + 2 + chunk_length]  # +2 是为了 skip '\r\n'
+                if self.HTTP_TYPE == "SSE":
+                    return chunk
                 # 使用re.search来查找匹配项
                 matches = re.findall(self.RE_PATTERN, chunk, re.DOTALL)
                 if (len(matches) == 0):
@@ -133,10 +169,9 @@ class http_clientx:
             response_body = b''.join(chunks)
             return response_body
         else:
-            # 如果不是分块编码，直接打印响应
-            return body.decode()
+            return body
 
-    def __private_method(self, headers, request_line, data_line):
+    async def __private_method(self, headers, request_line, data_line):
         # 构建请求头
         custom_headers = self.headers
         # 添加自定义头
@@ -147,27 +182,30 @@ class http_clientx:
         headers_string = '\r\n'.join(custom_headers)
         # 创建一个 TCP socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            if self.scheme == 'https':  # HTTPS连接
+            if self.scheme == 'https':
                 # 使用 SSL 包装 socket
-                context = ssl.create_default_context()
-                sock = context.wrap_socket(sock, server_hostname=self.hostname)
-            # 连接到服务器
-            sock.connect((self.hostname, self.port))
+                try:
+                    context = ssl.create_default_context()
+                    reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port, ssl=context)
+                except Exception as e:
+                    pass
+            else:
+                reader, writer = await asyncio.open_connection(host=self.hostname, port=self.port)
             headers_line = request_line.encode('utf-8') + headers_string.encode('utf-8') + data_line.encode(
                 'utf-8')
             # 发送header
-            sock.sendall(headers_line)
+            writer.write(headers_line)
             # 接收响应
             response = b""
             while True:
-                data = sock.recv(self.ITER_CHUNK_SIZE)
+                data = await reader.read(self.ITER_CHUNK_SIZE)
                 if not data:
                     break
                 response += data
         # 找到正文部分的开始位置
         res_headers, body = response.split(b'\r\n\r\n', 1)
         # 处理分块响应
-        if b'Transfer-Encoding: chunked' in response:
+        if b'transfer-encoding: chunked' in response.lower():
             # 解析分块
             chunks = []
             while body:

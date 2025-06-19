@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from enum import Enum
 
-from utils.environ_utils import my_printHeader, my_printBody, get_base_path, my_printBodyWS
+from utils.environ_utils import get_base_path, my_printBodyWS
 
 base_path = get_base_path()
 LOG_END_SYMBOL = '----------end----------'
@@ -19,6 +19,8 @@ class LogType(Enum):
     REC = 4  # 流式输出
     REM = 5  # 流式输出结果
     END = 6  # 输出结束
+    SSEQ = 7  # SSE请求
+    SSES = 8  # SSE返回
 
     def __str__(self):
         return self.name.lower()
@@ -165,12 +167,3 @@ async def logs_stream_show():
 
     latest_time = None
     await logs_scroll_show(latest_time)
-
-
-async def logs_stream_show_page():
-    await my_printHeader({"Content-Type": "text/html;charset=utf-8"})
-    js = ''
-    with open(f'{base_path}/pages/html/js/logs_scroll_show.js', 'r') as files:
-        js = files.readlines()
-    port = os.environ.get("port")
-    await my_printBody(f"<script>var ws_port={port};{''.join(js)}</script>", True)
