@@ -91,7 +91,7 @@ async def mySSE_msg(data, num, has_same_log, http_url):
         return
     client = http_clientx(http_url)
     if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resources/list',
-                          'tools/call', 'prompts/get']:
+                          'tools/call', 'prompts/get', 'resources/read']:
         if 'url' in data:
             del data['url']
         headers = {'Content-Type': 'application/json'}
