@@ -109,30 +109,106 @@ function getIndex() {
     return index;
 }
 
-var mcp = new URL(url)
+var stdio_WebSocket = null;
+var stdio_step = 0;
+if (url == null) {
+    var stdio_command = localStorage.getItem('stdio_command');
+    var command = prompt("请输入stdio的完整命令和参数(如:python -m mcp_server_fetch)", localStorage.hasOwnProperty(
+        'stdio_command') ? stdio_command : "python -m mcp_server_fetch");
+    if (command == null) {
+        throw new Error("command is null");
+    }
+    localStorage.setItem('stdio_command', command);
+    const container = document.querySelector('.container');
+    const div = document.createElement('div');
+    div.className = 'container-stdio';
+    div.style = "border-spacing: 4px 24px;";
+    div.style = "border: 1px dotted;color: red;";
+    div.innerText = "当前Stdio命令为: " + command;
+    if (container.firstChild) {
+        container.insertBefore(div, container.firstChild);
+    } else {
+        container.appendChild(div);
+    }
 
-if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
-    alert("url is null");
-} else if (mcp.pathname.endsWith('/mcp')) {
-    mcpStreamableHttp();
-} else if (mcp.pathname.endsWith('/sse')) {
-    const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
-    window.sse_WebSocket = sse_WebSocket;
-    sse_WebSocket.onopen = () => {
-        showStep('request', url);
-        console.log('sse_WebSocket:Connected to WebSocket server');
+    stdio_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=stdio&command=' + command);
+    window.stdio_WebSocket = stdio_WebSocket;
+    stdio_WebSocket.onopen = async () => {
+        console.log('stdio_WebSocket:Connected to WebSocket server');
+        await mcpStdio();
     };
-    sse_WebSocket.onmessage = async (event) => {
+    stdio_WebSocket.onmessage = async (event) => {
         var json = isValidJSON(event.data);
-        await mcpSSE(json);
+        showStep('response', json);
+        if (!json['logger']) {
+            stdio_step = stdio_step + 1;
+            await mcpStdio();
+        }
+        if (json['result']) {
+            if (json['result']['capabilities']) {
+                if (json['result']['capabilities']['tools']) {
+                    await mcpStdio('tools');
+                }
+                if (json['result']['capabilities']['prompts']) {
+                    await mcpStdio('prompts');
+                }
+                if (json['result']['capabilities']['resources']) {
+                    await mcpStdio('resources');
+                }
+            } else if (json['result']['tools']) {
+                await showGetResult('tools', json, true);
+            } else if (json['result']['prompts']) {
+                await showGetResult('prompts', json, true);
+            } else if (json['result']['resources']) {
+                await showGetResult('resources', json, true);
+                //tools调用结果
+            } else if (json['result']['content']) {
+                showCallResult(json, 'tools');
+                //prompts调用结果
+            } else if (json['result']['messages']) {
+                showCallResult(json, 'prompts');
+                //resources调用结果
+            } else if (json['result']['contents']) {
+                showCallResult(json, 'resources');
+            }
+        } else {
+            if (json == false) {
+                alert(event.data);
+            }
+        }
     };
-    sse_WebSocket.onclose = () => {
-        console.log('sse_WebSocket:Disconnected from WebSocket server');
+    stdio_WebSocket.onclose = () => {
+        console.log('stdio_WebSocket:Disconnected from WebSocket server');
         var b = confirm('Connection closed, do you want to refresh the page');
         if (b) {
             location.reload()
         }
     };
+} else {
+    var mcp = new URL(url);
+    if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
+        alert("不符合mcp-sse或mcp-streamable-http格式");
+    } else if (mcp.pathname.endsWith('/mcp')) {
+        mcpStreamableHttp();
+    } else if (mcp.pathname.endsWith('/sse')) {
+        const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
+        window.sse_WebSocket = sse_WebSocket;
+        sse_WebSocket.onopen = () => {
+            showStep('request', url);
+            console.log('sse_WebSocket:Connected to WebSocket server');
+        };
+        sse_WebSocket.onmessage = async (event) => {
+            var json = isValidJSON(event.data);
+            await mcpSSE(json);
+        };
+        sse_WebSocket.onclose = () => {
+            console.log('sse_WebSocket:Disconnected from WebSocket server');
+            var b = confirm('Connection closed, do you want to refresh the page');
+            if (b) {
+                location.reload()
+            }
+        };
+    }
 }
 
 //mcp streamable-http 调用过程
@@ -152,7 +228,11 @@ async function mcpStreamableHttp() {
         "id": getIndex()
     };
     console.log('json7', json7);
-    var res = await sendSseMessage(json7);
+    var json = {};
+    var res = await sendSseMessage(json7, function (headers, data) {
+        json = data;
+    });
+    console.log('json', json);
     var headers = res.headers;
     var data = res.data;
     var json8 = {
@@ -166,41 +246,156 @@ async function mcpStreamableHttp() {
         }
     }
     await sendSseMessage(json8);
-    var json9 = {
-        "method": "tools/list",
-        "jsonrpc": "2.0",
-        "id": getIndex()
-    };
-    console.log('json9', json9);
-    await sendSseMessage(json9, async function (headers, data) {
-        showGetResult("tools", data, false);
+    if (json['result']['capabilities']) {
+        if (json['result']['capabilities']['tools']) {
+            var ii = getIndex();
+            var json9 = {
+                "method": "tools/list",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    }
+                },
+                "jsonrpc": "2.0",
+                "id": ii
+            };
+            console.log('json9', json9);
+            await sendSseMessage(json9, async function (headers, data) {
+                showGetResult("tools", data, false);
+            });
+        }
+        if (json['result']['capabilities']['prompts']) {
+            var ii = getIndex();
+            var json10 = {
+                "method": "prompts/list",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    }
+                },
+                "jsonrpc": "2.0",
+                "id": ii
+            };
+            console.log('json10', json10);
+            await sendSseMessage(json10, async function (headers, data) {
+                showGetResult("prompts", data, false);
+            });
+        }
+        if (json['result']['capabilities']['resources']) {
+            var ii = getIndex();
+            var json11 = {
+                "method": "resources/list",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    }
+                },
+                "jsonrpc": "2.0",
+                "id": ii
+            };
+            console.log('json11', json11);
+            await sendSseMessage(json11, async function (headers, data) {
+                showGetResult("resources", data, false);
+            });
+        }
+    }
+}
+
+async function toStdioMsg(json, new_timeout) {
+    showStep('request', json);
+    var timeout = 0;
+    if (new_timeout) {
+        timeout = new_timeout;
+    }
+    stdio_WebSocket.send(JSON.stringify(json));
+    return new Promise(function (resolve, reject) {
+        console.log('toStdioMsg', json);
+        setTimeout(function () {
+            console.log('ok', json);
+            resolve();
+        }, timeout);
     });
-    var json10 = {
-        "method": "prompts/list",
-        "jsonrpc": "2.0",
-        "id": getIndex()
-    };
-    console.log('json10', json10);
-    await sendSseMessage(json10, async function (headers, data) {
-        showGetResult("prompts", data, false);
-    });
-    var json11 = {
-        "method": "resources/list",
-        "jsonrpc": "2.0",
-        "id": getIndex()
-    };
-    console.log('json11', json11);
-    await sendSseMessage(json11, async function (headers, data) {
-        showGetResult("resources", data, false);
-    });
+}
+
+//mcp stdio 调用过程
+async function mcpStdio(type) {
+    console.log('stdio_step', stdio_step);
+    if (type == 'tools') {
+        var ii = getIndex();
+        var json9 = {
+            "method": "tools/list",
+            "params": {
+                "_meta": {
+                    "progressToken": ii
+                }
+            },
+            "jsonrpc": "2.0",
+            "id": ii
+        };
+        console.log('json9', json9);
+        await toStdioMsg(json9, 200);
+    } else if (type == 'prompts') {
+        var ii = getIndex();
+        var json10 = {
+            "method": "prompts/list",
+            "params": {
+                "_meta": {
+                    "progressToken": ii
+                }
+            },
+            "jsonrpc": "2.0",
+            "id": ii
+        };
+        console.log('json10', json10);
+        await toStdioMsg(json10, 200);
+    } else if (type == 'resources') {
+        var ii = getIndex();
+        var json11 = {
+            "method": "resources/list",
+            "params": {
+                "_meta": {
+                    "progressToken": ii
+                }
+            },
+            "jsonrpc": "2.0",
+            "id": ii
+        };
+        console.log('json11', json11);
+        await toStdioMsg(json11, 200);
+    } else if (stdio_step == 0) {
+        var json7 = {
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-03-26",
+                "capabilities": {
+                    "sampling": {},
+                    "roots": {
+                        "listChanged": true
+                    }
+                },
+                "clientInfo": {
+                    "name": "llm-logs-analysis",
+                    "version": "v0.1.2"
+                }
+            },
+            "jsonrpc": "2.0",
+            "id": getIndex()
+        };
+        console.log('json7', json7);
+        await toStdioMsg(json7);
+    } else if (stdio_step == 1) {
+        var json8 = {
+            "method": "notifications/initialized",
+            "jsonrpc": "2.0"
+        };
+        console.log('json8', json8);
+        await toStdioMsg(json8);
+    }
 }
 
 //mcp sse 调用过程
 async function mcpSSE(json) {
     if (json) {
-        if (json['event'] == 'ping') {
-            return;
-        }
         console.log('sse_WebSocket', event.data);
         showStep('response', event.data);
         if (json['event'] == 'endpoint') {
@@ -228,39 +423,45 @@ async function mcpSSE(json) {
             await sendSseMessage(json1);
         } else {
             var json = JSON.parse(json['data']);
-            if (json['result']['protocolVersion']) {
-                var json2 = {
-                    "url": mcp_session_url,
-                    "jsonrpc": "2.0",
-                    "method": "notifications/initialized"
-                };
-                console.log('json2', json2);
-                await sendSseMessage(json2, async function () {
-                    if (json['result']['capabilities']['tools']) {
-                        await nextStep('tools');
-                    }
-                    if (json['result']['capabilities']['prompts']) {
-                        await nextStep('prompts');
-                    }
-                    if (json['result']['capabilities']['resources']) {
-                        await nextStep('resources');
-                    }
-                });
-            } else if (json['result']['tools']) {
-                await showGetResult('tools', json, true);
-            } else if (json['result']['prompts']) {
-                await showGetResult('prompts', json, true);
-            } else if (json['result']['resources']) {
-                await showGetResult('resources', json, true);
-                //tools调用结果
-            } else if (json['result']['content']) {
-                showCallResult(json, 'tools');
-                //prompts调用结果
-            } else if (json['result']['messages']) {
-                showCallResult(json, 'prompts');
-                //resources调用结果
-            } else if (json['result']['contents']) {
-                showCallResult(json, 'resources');
+            if (json['result']) {
+                if (json['result']['protocolVersion']) {
+                    var json2 = {
+                        "url": mcp_session_url,
+                        "jsonrpc": "2.0",
+                        "method": "notifications/initialized"
+                    };
+                    console.log('json2', json2);
+                    await sendSseMessage(json2, async function () {
+                        if (json['result']['capabilities']['tools']) {
+                            await nextStep('tools');
+                        }
+                        if (json['result']['capabilities']['prompts']) {
+                            await nextStep('prompts');
+                        }
+                        if (json['result']['capabilities']['resources']) {
+                            await nextStep('resources');
+                        }
+                    });
+                } else if (json['result']['tools']) {
+                    await showGetResult('tools', json, true);
+                } else if (json['result']['prompts']) {
+                    await showGetResult('prompts', json, true);
+                } else if (json['result']['resources']) {
+                    await showGetResult('resources', json, true);
+                    //tools调用结果
+                } else if (json['result']['content']) {
+                    showCallResult(json, 'tools');
+                    //prompts调用结果
+                } else if (json['result']['messages']) {
+                    showCallResult(json, 'prompts');
+                    //resources调用结果
+                } else if (json['result']['contents']) {
+                    showCallResult(json, 'resources');
+                }
+            } else {
+                if (json == false) {
+                    alert(event.data);
+                }
             }
         }
     }
@@ -469,18 +670,24 @@ async function showItem2Html(type, item, sse) {
             item_timer_time++;
             button.textContent = item_timer_time;
         }, 1000);
-        mcp_calls[ii] = function (data) {
+        mcp_calls[ii] = function () {
             button.textContent = "test";
             button.className = "";
             clearInterval(item_timer);
         }
         console.log('json6', json6);
-        await sendSseMessage(json6, function (headers, json) {
-            //mcp streamable-http 执行后返回的就是执行结果
-            if (sse == false) {
-                showCallResult(json, type);
-            }
-        });
+        if (stdio_WebSocket != null) {
+            showStep('request', json6);
+            stdio_WebSocket.send(JSON.stringify(json6));
+        } else {
+            await sendSseMessage(json6, function (headers, json) {
+                //mcp streamable-http 执行后返回的就是执行结果
+                if (sse == false) {
+                    mcp_calls[ii]();
+                    showCallResult(json, type);
+                }
+            });
+        }
     });
     itemDiv.appendChild(button);
     var propertie_index = 0;
@@ -491,7 +698,9 @@ async function showItem2Html(type, item, sse) {
         propertie_index++;
         var required = null;
         if (type == "tools") {
-            required = item.inputSchema.required.includes(propertie);
+            if (item.inputSchema.required) {
+                required = item.inputSchema.required.includes(propertie);
+            }
         } else if (type == "prompts") {
             required = propertie.required;
         }
@@ -525,10 +734,13 @@ async function showItem2Html(type, item, sse) {
         if (type == "resources") {
             itemInput.setAttribute('placeholder', propertie.description);
         } else if (propertie.hasOwnProperty('description')) {
+            itemInput.setAttribute('placeholder', propertie.description);
+        } else if (properties[propertie] != null && properties[propertie].hasOwnProperty('description')) {
             itemInput.setAttribute('placeholder', properties[propertie].description);
         }
         itemDiv.appendChild(itemInput);
     }
+
     if (type == "tools") {
         properties = item.inputSchema.properties;
         Object.keys(properties).forEach(function (propertie) {
@@ -536,9 +748,11 @@ async function showItem2Html(type, item, sse) {
         });
     } else if (type == "prompts") {
         properties = item.arguments;
-        properties.forEach(function (propertie) {
-            createPropertie(type, propertie);
-        });
+        if (properties) {
+            properties.forEach(function (propertie) {
+                createPropertie(type, propertie);
+            });
+        }
     } else if (type == "resources") {
         item.name = "uri";
         createPropertie(type, item);

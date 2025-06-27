@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 import re
-import time
 
 from utils.environ_utils import get_query, my_printBody, get_md5, GlobalVal
 from utils.http_clientx import http_clientx
@@ -75,12 +74,10 @@ async def mySSE_init(scope, receive_message, send, num):
     task = asyncio.create_task(mySSE_sse(False, send, num, http_url))
     try:
         while True:
-            await asyncio.sleep(2)
-            # 这里发送心跳主要是为了task.cancel()
-            await send({
-                "type": "websocket.send",
-                'text': json.dumps({'event': 'ping', 'data': str(time.time())})
-            })
+            message = await receive_message()
+            if message['type'] == 'websocket.disconnect':
+                task.cancel()
+                break
     except Exception as e:
         task.cancel()
         print(f"Connection error: {e}")

@@ -10,7 +10,8 @@ import uvicorn
 from pages.execGET import my_GET
 from pages.execPost import my_POST
 from pages.mySSE import mySSE_init
-from utils.environ_utils import GlobalVal, get_base_path
+from pages.myStdio import myStdio_msg
+from utils.environ_utils import GlobalVal, get_base_path, get_query
 from utils.logs_utils import app_init, is_first_open, logs_stream_show, get_num
 
 
@@ -36,13 +37,6 @@ class App:
                 'type': 'websocket.accept',
             })
 
-            # 用于处理接收消息
-            async def receive_message():
-                while True:
-                    message = await receive()
-                    if message['type'] == 'websocket.receive':
-                        return message
-
             if scope['path'] == '/logs_ws':
                 # 调用 WebSocket 应用程序进行处理
                 await logs_stream_show()
@@ -50,7 +44,11 @@ class App:
                 num = get_num()
                 myself.server.num = num
                 GlobalVal.myHandlerList[coroutine_id] = myself
-                await mySSE_init(scope, receive_message, send, num)
+                command = get_query('command')
+                if command is not None:
+                    await myStdio_msg(command, receive, send, num)
+                else:
+                    await mySSE_init(scope, receive, send, num)
 
 
 async def set_my_environ(myself):

@@ -36,9 +36,9 @@ ws.onmessage = (event) => {
         var data = isValidJSON(json['data']['data']);
         if (data) {
             var style = '';
-            if (json['type'] == 'req') {
+            if (json['type'] == 'req' || json['type'] == 'sseq') {
                 style = 'color: blue;';
-            } else if (json['type'] == 'res') {
+            } else if (json['type'] == 'res' || json['type'] == 'sses') {
                 style = 'color: green;';
             } else if (json['type'] == 'rec') {
                 style = 'color: red;';
