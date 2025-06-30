@@ -23,24 +23,20 @@ async def myStdio_msg(command, receive_message, send, num):
 
     executable_path = None
     if not os.path.exists(commands[0].strip("'\"")):
-        result = subprocess.run(['where', commands[0].replace('"', '').replace("'", "")], capture_output=True, text=True, check=True)
+        result = subprocess.run(['where', commands[0].replace('"', '').replace("'", "")], capture_output=True,
+                                text=True, check=True)
         # 获取输出结果
         executable_paths = result.stdout.splitlines()
         if commands[0].lower() == 'python':
+            # 解决用开发工具运行时候，它默认先选择开发工具中的python
             if len(executable_paths) > 1:
                 executable_paths.pop(0)
-                for path in executable_paths:
-                    if path.lower().endswith('.cmd') or path.lower().endswith('.exe'):
-                        executable_path = path
-                        break
+                executable_path = get_executable_path(executable_path, executable_paths)
             elif len(executable_paths) == 1:
                 executable_path = executable_paths[0]
         else:
             if len(executable_paths) > 0:
-                for path in executable_paths:
-                    if path.lower().endswith('.cmd') or path.lower().endswith('.exe'):
-                        executable_path = path
-                        break
+                executable_path = get_executable_path(executable_path, executable_paths)
 
     env = os.environ
     # 获取参数
@@ -63,47 +59,52 @@ async def myStdio_msg(command, receive_message, send, num):
             env=os.environ,
             executable=executable_path
         )
-
-        stdin = process.stdin
-        std_server_task = asyncio.create_task(connect_to_server(process, send, num))
-        while True:
-            message = await receive_message()
-            if message['type'] == 'websocket.receive':
-                # stdio input
-                text = message.get('text')
-                data=json.loads(text)
-                if 'url' in data:
-                    del data['url']
-                stdin.write(json.dumps(data).encode() + b'\n\n')
-                write_httplog(LogType.SSEQ, text + '\n\n', num)
-                await stdin.drain()
-            elif message['type'] == 'websocket.disconnect':
-                std_server_task.cancel()
-                break
+        stdout_task = asyncio.create_task(read_stream(process.stdout, send, num, 'stdout'))
+        stderr_task = asyncio.create_task(read_stream(process.stderr, send, num, 'stderr'))
+        receive_task = asyncio.create_task(
+            scoket_receive_message(process, receive_message, num, stdout_task, stderr_task))
+        # 等待进程结束和输出读取完毕
+        return_code = await process.wait()
+        await send({
+            "type": "websocket.send",
+            'text': f"Process exited with code: {return_code}"
+        })
+        write_httplog(LogType.SSES, f"Process exited with code: {return_code}" + '\n\n', num)
+        await asyncio.sleep(0)
+        try:
+            await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)  # 等待任务完成或取消，捕获异常
+        except asyncio.CancelledError as ee:
+            print("Stdout/Stderr tasks were cancelled.")
+        receive_task.cancel()
     except Exception as e:
-        std_server_task.cancel()
+        receive_task.cancel()
 
 
-async def connect_to_server(process, send, num):
-    stdout_task = asyncio.create_task(read_stream(process.stdout, send, num, 'stdout'))
-    stderr_task = asyncio.create_task(read_stream(process.stderr, send), num, 'stderr')
+def get_executable_path(executable_path, executable_paths):
+    for path in executable_paths:
+        if path.lower().endswith('.cmd') or path.lower().endswith('.exe'):
+            executable_path = path
+            break
+    return executable_path
 
-    # 等待进程结束和输出读取完毕
-    return_code = await process.wait()
-    await send({
-        "type": "websocket.send",
-        'text': f"Process exited with code: {return_code}"
-    })
-    write_httplog(LogType.SSES, f"Process exited with code: {return_code}" + '\n\n', num)
-    await asyncio.sleep(0)
 
-    stdout_task.cancel()  # 取消 stdout 任务
-    stderr_task.cancel()  # 取消 stderr 任务
-
-    try:
-        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)  # 等待任务完成或取消，捕获异常
-    except asyncio.CancelledError as ee:
-        print("Stdout/Stderr tasks were cancelled.")
+async def scoket_receive_message(process, receive_message, num, stdout_task, stderr_task):
+    while True:
+        message = await receive_message()
+        if message['type'] == 'websocket.receive':
+            # stdio input
+            text = message.get('text')
+            data = json.loads(text)
+            if 'url' in data:
+                del data['url']
+            process.stdin.write(json.dumps(data).encode() + b'\n\n')
+            write_httplog(LogType.SSEQ, text + '\n\n', num)
+            await process.stdin.drain()
+        elif message['type'] == 'websocket.disconnect':
+            stdout_task.cancel()
+            stderr_task.cancel()
+            asyncio.current_task().cancel()
+            break
 
 
 async def read_stream(reader, send, num, prefix=""):
@@ -112,6 +113,9 @@ async def read_stream(reader, send, num, prefix=""):
         try:
             line = await reader.readline()
             if not line:
+                if reader.at_eof():
+                    asyncio.current_task().cancel()
+                    break
                 await asyncio.sleep(0.35)
                 continue
             line_str = line.decode().strip()
@@ -134,27 +138,27 @@ async def read_stream(reader, send, num, prefix=""):
 
 
 def remove_args_after(argument_string):
-    # 查找 '--' 的位置
-    index = argument_string.find('--')
+    # 查找 '++' 的位置
+    index = argument_string.find('++')
     if index != -1:
-        # 如果找到了 '--'，则返回截取 '--' 之前的部分
+        # 如果找到了 '++'，则返回截取 '++' 之前的部分
         return argument_string[:index].strip()
     return argument_string.strip()
 
 
 def parse_string_to_args(input_string):
     """
-    解析类似 "python --user=xzx" 这样的字符串，提取参数和值。
+    解析类似 "python ++user=xzx" 这样的字符串，提取参数和值。
 
     Args:
-        input_string:  包含参数的字符串。例如 "python --user=xzx"
+        input_string:  包含参数的字符串。例如 "python ++user=xzx"
 
     Returns:
         一个字典，包含解析出的参数和值。  如果解析失败，返回 None。
     """
     args_dict = {}
     # 使用正则表达式匹配参数和值
-    matches = re.findall(r'--(\w+)=([^ ]+)', input_string)  # 匹配 --key=value，并提取 key 和 value
+    matches = re.findall(r'\+\+([a-zA-Z0-9-_]+)=([^ ]+)', input_string)  # 匹配 ++key=value，并提取 key 和 value
     if not matches:
         return None  # 如果没有找到参数，返回 None
 

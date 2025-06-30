@@ -67,24 +67,140 @@ function load() {
         }
     `;
     document.body.appendChild(style);
-};
-
+}
 load();
 
-// sse url
+// sse url or streamable-http url
 var url = getParams('url', window.location.search);
-// sse ws 端口
-var mcp_session_url = '';
+// sse 返回的带session的地址
+var sse_session_url = '';
 // html上显示请求响应日志的自增序号
 var num = 0;
-// mcp 接口唯一标识
-var index = 0;
+// mcp 接口唯一标识，mcp初始化时候id为0即可
+var index_id = 0;
 // mcp调用集合
 var mcp_calls = {};
 // mcp streamable-http地址
 var mcp_href = null;
-// mcp streamable-http 附加头
+// mcp streamable-http 附加头，目前是mcp-session-id
 var mcp_headers_extra = {};
+var ii = 0;
+
+function dynamic_fields(obj, has_progressToken, only_url) {
+    if (!only_url) {
+        // 动态设置id
+        Object.defineProperty(obj, 'id', {
+            get: function () {
+                return ii;
+            },
+            enumerable: true,
+            configurable: true
+        });
+    }
+    // 动态设置url
+    Object.defineProperty(obj, 'url', {
+        get: function () {
+            return sse_session_url;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    if (has_progressToken) {
+        Object.defineProperty(obj.params._meta, 'progressToken', {
+            get: function () {
+                return ii;
+            },
+            enumerable: true,
+            configurable: true
+        });
+    }
+}
+
+//step1 初始化
+var initialize_json = {
+    "url": sse_session_url,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-06-18",
+        "capabilities": {
+            "sampling": {},
+            "roots": {
+                "listChanged": true
+            }
+        },
+        "clientInfo": {
+            "name": "llm-logs-analysis",
+            "version": "v0.2.0"
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": ii
+};
+dynamic_fields(initialize_json);
+
+//step2 notifications/initialized
+var notifications_initialized_json = {
+    "url": sse_session_url,
+    "jsonrpc": "2.0",
+    "method": "notifications/initialized"
+};
+dynamic_fields(notifications_initialized_json, false, true);
+
+//step 获取tools
+var tools_list_json = {
+    "url": sse_session_url,
+    "method": "tools/list",
+    "params": {
+        "_meta": {
+            "progressToken": ii
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": ii
+};
+dynamic_fields(tools_list_json, true);
+
+//step 获取prompts
+var prompts_list_json = {
+    "url": sse_session_url,
+    "method": "prompts/list",
+    "params": {
+        "_meta": {
+            "progressToken": ii
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": ii
+};
+dynamic_fields(prompts_list_json, true);
+
+//step 获取resources
+var resources_list_json = {
+    "url": sse_session_url,
+    "method": "resources/list",
+    "params": {
+        "_meta": {
+            "progressToken": ii
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": ii
+};
+dynamic_fields(resources_list_json, true);
+
+//step 获取resources/templates
+var resources_templates_list_json = {
+    "url": sse_session_url,
+    "method": "resources/templates/list",
+    "params": {
+        "_meta": {
+            "progressToken": ii
+        }
+    },
+    "jsonrpc": "2.0",
+    "id": ii
+};
+dynamic_fields(resources_templates_list_json, true);
 
 function getParams(name, parent) {
     const urlString = location.origin + parent;
@@ -105,16 +221,17 @@ function isValidJSON(obj) {
 }
 
 function getIndex() {
-    index++;
-    return index;
+    index_id++;
+    return index_id;
 }
 
 var stdio_WebSocket = null;
 var stdio_step = 0;
 if (url == null) {
     var stdio_command = localStorage.getItem('stdio_command');
-    var command = prompt("请输入stdio的完整命令和参数(如:python -m mcp_server_fetch)", localStorage.hasOwnProperty(
-        'stdio_command') ? stdio_command : "python -m mcp_server_fetch");
+    var command = prompt("Please enter the stdio service command(like:python -m mcp_server_fetch ++user=xxx)",
+        localStorage.hasOwnProperty(
+            'stdio_command') ? stdio_command : "python -m mcp_server_fetch");
     if (command == null) {
         throw new Error("command is null");
     }
@@ -122,16 +239,16 @@ if (url == null) {
     const container = document.querySelector('.container');
     const div = document.createElement('div');
     div.className = 'container-stdio';
-    div.style = "border-spacing: 4px 24px;";
-    div.style = "border: 1px dotted;color: red;";
-    div.innerText = "当前Stdio命令为: " + command;
+    div.style = "border: 2px dotted;color: red;";
+    div.innerText = "Stdio command is: " + command;
     if (container.firstChild) {
         container.insertBefore(div, container.firstChild);
     } else {
         container.appendChild(div);
     }
 
-    stdio_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=stdio&command=' + command);
+    stdio_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=stdio&command=' + encodeURIComponent(
+        command));
     window.stdio_WebSocket = stdio_WebSocket;
     stdio_WebSocket.onopen = async () => {
         console.log('stdio_WebSocket:Connected to WebSocket server');
@@ -145,6 +262,7 @@ if (url == null) {
             await mcpStdio();
         }
         if (json['result']) {
+            //判断包含哪些资源
             if (json['result']['capabilities']) {
                 if (json['result']['capabilities']['tools']) {
                     await mcpStdio('tools');
@@ -154,22 +272,10 @@ if (url == null) {
                 }
                 if (json['result']['capabilities']['resources']) {
                     await mcpStdio('resources');
+                    await mcpStdio('resourceTemplates');
                 }
-            } else if (json['result']['tools']) {
-                await showGetResult('tools', json, true);
-            } else if (json['result']['prompts']) {
-                await showGetResult('prompts', json, true);
-            } else if (json['result']['resources']) {
-                await showGetResult('resources', json, true);
-                //tools调用结果
-            } else if (json['result']['content']) {
-                showCallResult(json, 'tools');
-                //prompts调用结果
-            } else if (json['result']['messages']) {
-                showCallResult(json, 'prompts');
-                //resources调用结果
-            } else if (json['result']['contents']) {
-                showCallResult(json, 'resources');
+            } else{
+                await showResultAndCall(json);
             }
         } else {
             if (json == false) {
@@ -187,7 +293,9 @@ if (url == null) {
 } else {
     var mcp = new URL(url);
     if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
-        alert("不符合mcp-sse或mcp-streamable-http格式");
+        alert(
+            "Invalid URL format, please check whether it complies with the mcp-sse or mcp-streamable-http specifications."
+        );
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
     } else if (mcp.pathname.endsWith('/sse')) {
@@ -199,7 +307,7 @@ if (url == null) {
         };
         sse_WebSocket.onmessage = async (event) => {
             var json = isValidJSON(event.data);
-            await mcpSSE(json);
+            await mcpSSE(json,event);
         };
         sse_WebSocket.onclose = () => {
             console.log('sse_WebSocket:Disconnected from WebSocket server');
@@ -211,96 +319,108 @@ if (url == null) {
     }
 }
 
+//显示资源及调用结果
+async function showResultAndCall(json) {
+    //获取资源后要显示一便于用户调用
+    if (json['result']['tools']) {
+        await showGetResult('tools', json, true);
+    } else if (json['result']['prompts']) {
+        await showGetResult('prompts', json, true);
+    } else if (json['result']['resources']) {
+        await showGetResult('resources', json, true);
+    } else if (json['result']['resourceTemplates']) {
+        await showGetResult('resourceTemplates', json, true);
+        //tools调用结果
+    } else if (json['result']['content']) {
+        showCallResult(json, 'tools');
+        //prompts调用结果
+    } else if (json['result']['messages']) {
+        showCallResult(json, 'prompts');
+        //resources调用结果
+    } else if (json['result']['contents']) {
+        showCallResult(json, 'resources');
+    }
+}
+
 //mcp streamable-http 调用过程
 async function mcpStreamableHttp() {
+    // 这样设置，后台处理时候可以兼容llm设置mcp，该服务可以监测的
     mcp_href = location.href;
-    var json7 = {
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "2025-03-26",
-            "capabilities": {},
-            "clientInfo": {
-                "name": "llm-logs-analysis",
-                "version": "v0.1.2"
-            }
-        },
-        "jsonrpc": "2.0",
-        "id": getIndex()
-    };
-    console.log('json7', json7);
+    console.log('initialize_json', initialize_json);
     var json = {};
-    var res = await sendSseMessage(json7, function (headers, data) {
+    var res = await sendSseMessageAsync(initialize_json, function (headers, data) {
         json = data;
     });
     console.log('json', json);
     var headers = res.headers;
-    var data = res.data;
-    var json8 = {
-        "method": "notifications/initialized",
-        "jsonrpc": "2.0"
-    };
-    console.log('json8', json8);
+    console.log('notifications_initialized_json', notifications_initialized_json);
     if (headers.get('mcp-session-id') != null) {
         mcp_headers_extra = {
             'mcp-session-id': headers.get('mcp-session-id')
         }
     }
-    await sendSseMessage(json8);
+    await sendSseMessageAsync(notifications_initialized_json);
     if (json['result']['capabilities']) {
         if (json['result']['capabilities']['tools']) {
-            var ii = getIndex();
-            var json9 = {
-                "method": "tools/list",
-                "params": {
-                    "_meta": {
-                        "progressToken": ii
-                    }
-                },
-                "jsonrpc": "2.0",
-                "id": ii
-            };
-            console.log('json9', json9);
-            await sendSseMessage(json9, async function (headers, data) {
-                showGetResult("tools", data, false);
+            ii = getIndex();
+            console.log('tools_list_json', tools_list_json);
+            await sendSseMessageAsync(tools_list_json, async function (headers, data) {
+                await showGetResult("tools", data, false);
             });
         }
         if (json['result']['capabilities']['prompts']) {
-            var ii = getIndex();
-            var json10 = {
-                "method": "prompts/list",
-                "params": {
-                    "_meta": {
-                        "progressToken": ii
-                    }
-                },
-                "jsonrpc": "2.0",
-                "id": ii
-            };
-            console.log('json10', json10);
-            await sendSseMessage(json10, async function (headers, data) {
-                showGetResult("prompts", data, false);
+            ii = getIndex();
+            console.log('prompts_list_json', prompts_list_json);
+            await sendSseMessageAsync(prompts_list_json, async function (headers, data) {
+                await showGetResult("prompts", data, false);
             });
         }
         if (json['result']['capabilities']['resources']) {
-            var ii = getIndex();
-            var json11 = {
-                "method": "resources/list",
-                "params": {
-                    "_meta": {
-                        "progressToken": ii
-                    }
-                },
-                "jsonrpc": "2.0",
-                "id": ii
-            };
-            console.log('json11', json11);
-            await sendSseMessage(json11, async function (headers, data) {
+            ii = getIndex();
+            console.log('resources_list_json', resources_list_json);
+            await sendSseMessageAsync(resources_list_json, async function (headers, data) {
                 showGetResult("resources", data, false);
+            });
+
+            ii = getIndex();
+            console.log('resources_templates_list_json', resources_templates_list_json);
+            await sendSseMessageAsync(resources_templates_list_json, async function (headers, data) {
+                showGetResult("resourceTemplates", data, false);
             });
         }
     }
 }
 
+//mcp stdio 调用过程
+async function mcpStdio(type) {
+    console.log('stdio_step', stdio_step);
+    if (type == 'tools') {
+        ii = getIndex();
+        console.log('tools_list_json', tools_list_json);
+        await toStdioMsg(tools_list_json, 200);
+    } else if (type == 'prompts') {
+        ii = getIndex();
+        console.log('prompts_list_json', prompts_list_json);
+        await toStdioMsg(prompts_list_json, 200);
+    } else if (type == 'resources') {
+        ii = getIndex();
+        console.log('resources_list_json', resources_list_json);
+        await toStdioMsg(resources_list_json, 200);
+    } else if (type == 'resourceTemplates') {
+        ii = getIndex();
+        console.log('resources_templates_list_json', resources_templates_list_json);
+        //await toStdioMsg(resources_templates_list_json, 200);
+    } else if (stdio_step == 0) {
+        // id 默认为0
+        console.log('initialize_json', initialize_json);
+        await toStdioMsg(initialize_json);
+    } else if (stdio_step == 1) {
+        console.log('notifications_initialized_json', notifications_initialized_json);
+        await toStdioMsg(notifications_initialized_json);
+    }
+}
+
+//stdio使用
 async function toStdioMsg(json, new_timeout) {
     showStep('request', json);
     var timeout = 0;
@@ -317,121 +437,21 @@ async function toStdioMsg(json, new_timeout) {
     });
 }
 
-//mcp stdio 调用过程
-async function mcpStdio(type) {
-    console.log('stdio_step', stdio_step);
-    if (type == 'tools') {
-        var ii = getIndex();
-        var json9 = {
-            "method": "tools/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        };
-        console.log('json9', json9);
-        await toStdioMsg(json9, 200);
-    } else if (type == 'prompts') {
-        var ii = getIndex();
-        var json10 = {
-            "method": "prompts/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        };
-        console.log('json10', json10);
-        await toStdioMsg(json10, 200);
-    } else if (type == 'resources') {
-        var ii = getIndex();
-        var json11 = {
-            "method": "resources/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        };
-        console.log('json11', json11);
-        await toStdioMsg(json11, 200);
-    } else if (stdio_step == 0) {
-        var json7 = {
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-03-26",
-                "capabilities": {
-                    "sampling": {},
-                    "roots": {
-                        "listChanged": true
-                    }
-                },
-                "clientInfo": {
-                    "name": "llm-logs-analysis",
-                    "version": "v0.1.2"
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": getIndex()
-        };
-        console.log('json7', json7);
-        await toStdioMsg(json7);
-    } else if (stdio_step == 1) {
-        var json8 = {
-            "method": "notifications/initialized",
-            "jsonrpc": "2.0"
-        };
-        console.log('json8', json8);
-        await toStdioMsg(json8);
-    }
-}
-
 //mcp sse 调用过程
-async function mcpSSE(json) {
-    if (json) {
-        console.log('sse_WebSocket', event.data);
-        showStep('response', event.data);
-        if (json['event'] == 'endpoint') {
-            mcp_session_url = (new URL(url)).origin + json['data'];
-            var json1 = {
-                "url": mcp_session_url,
-                "method": "initialize",
-                "params": {
-                    "protocolVersion": "2025-03-26",
-                    "capabilities": {
-                        "sampling": {},
-                        "roots": {
-                            "listChanged": true
-                        }
-                    },
-                    "clientInfo": {
-                        "name": "llm-logs-analysis",
-                        "version": "v0.1.2"
-                    }
-                },
-                "jsonrpc": "2.0",
-                "id": getIndex()
-            };
-            console.log('json1', json1);
-            await sendSseMessage(json1);
-        } else {
-            var json = JSON.parse(json['data']);
+async function mcpSSE(json_in, event) {
+    if (json_in) {
+        console.log('sse_WebSocket', json_in);
+        showStep('response', json_in);
+        if (json_in['event'] == 'endpoint') {
+            sse_session_url = (new URL(url)).origin + json_in['data'];
+            console.log('initialize_json', initialize_json);
+            await sendSseMessageAsync(initialize_json);
+        } else {console.log('xzxzx', json_in);window.json_in=json_in;
+            var json = json_in['data'];
             if (json['result']) {
                 if (json['result']['protocolVersion']) {
-                    var json2 = {
-                        "url": mcp_session_url,
-                        "jsonrpc": "2.0",
-                        "method": "notifications/initialized"
-                    };
-                    console.log('json2', json2);
-                    await sendSseMessage(json2, async function () {
+                    console.log('notifications_initialized_json', notifications_initialized_json);
+                    await sendSseMessageAsync(notifications_initialized_json, async function () {
                         if (json['result']['capabilities']['tools']) {
                             await nextStep('tools');
                         }
@@ -440,23 +460,11 @@ async function mcpSSE(json) {
                         }
                         if (json['result']['capabilities']['resources']) {
                             await nextStep('resources');
+                            await nextStep('resourceTemplates');
                         }
                     });
-                } else if (json['result']['tools']) {
-                    await showGetResult('tools', json, true);
-                } else if (json['result']['prompts']) {
-                    await showGetResult('prompts', json, true);
-                } else if (json['result']['resources']) {
-                    await showGetResult('resources', json, true);
-                    //tools调用结果
-                } else if (json['result']['content']) {
-                    showCallResult(json, 'tools');
-                    //prompts调用结果
-                } else if (json['result']['messages']) {
-                    showCallResult(json, 'prompts');
-                    //resources调用结果
-                } else if (json['result']['contents']) {
-                    showCallResult(json, 'resources');
+                } else {
+                    await showResultAndCall(json);
                 }
             } else {
                 if (json == false) {
@@ -464,6 +472,27 @@ async function mcpSSE(json) {
                 }
             }
         }
+    }
+}
+
+//sse 使用
+async function nextStep(type) {
+    if (type == 'tools') {
+        ii = getIndex();
+        console.log('tools_list_json', tools_list_json);
+        await sendSseMessageAsync(tools_list_json);
+    } else if (type == 'prompts') {
+        ii = getIndex();
+        console.log('prompts_list_json', prompts_list_json);
+        await sendSseMessageAsync(prompts_list_json);
+    } else if (type == 'resources') {
+        ii = getIndex();
+        console.log('resources_list_json', resources_list_json);
+        await sendSseMessageAsync(resources_list_json);
+    } else if (type == 'resourceTemplates') {
+        ii = getIndex();
+        console.log('resources_templates_list_json', resources_templates_list_json);
+        await sendSseMessageAsync(resources_templates_list_json);
     }
 }
 
@@ -481,6 +510,10 @@ function showStep(t, data) {
     }
     var formattedJson = '';
     if (json) {
+        if (json.hasOwnProperty('logger') && json['logger'] == 'info') {
+            document.querySelector('.mcp').innerHTML += '<p style = \'color: red;\' >' + json['msg'] + '</p>';
+            return;
+        }
         if (json['data'] != undefined && typeof json['data'] === 'string') {
             if (isValidJSON(json['data'])) {
                 var jj = JSON.parse(json['data']);
@@ -488,6 +521,9 @@ function showStep(t, data) {
             }
         }
         console.log('showStep2', json);
+        if (json.hasOwnProperty('url') && json.url == '') {
+            delete json.url;
+        }
         formattedJson = JSON.stringify(json, null, 2);
     } else {
         formattedJson = data;
@@ -495,55 +531,6 @@ function showStep(t, data) {
     html = num + "、   ---" + t + ":" + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' +
         '<br/>';
     document.querySelector('.mcp').innerHTML += html;
-}
-
-async function nextStep(type) {
-    if (type == 'tools') {
-        var ii = getIndex();
-        var json3 = {
-            "url": mcp_session_url,
-            "method": "tools/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        }
-        console.log('json3', json3);
-        await sendSseMessage(json3);
-    } else if (type == 'prompts') {
-        var ii = getIndex();
-        var json4 = {
-            "url": mcp_session_url,
-            "method": "prompts/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        }
-        console.log('json4', json4);
-        await sendSseMessage(json4);
-    } else if (type == 'resources') {
-        var ii = getIndex();
-        var json5 = {
-            "url": mcp_session_url,
-            "method": "resources/list",
-            "params": {
-                "_meta": {
-                    "progressToken": ii
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": ii
-        }
-        console.log('json5', json5);
-        await sendSseMessage(json5);
-    }
 }
 
 //显示获取结果
@@ -565,6 +552,11 @@ async function showGetResult(type, data, sse) {
         for (const resource of jsonData.result.resources) {
             await showItem2Html(type, resource, sse);
         }
+    } else if (type == 'resourceTemplates') {
+        mcp2html(type);
+        for (const resource of jsonData.result.resourceTemplates) {
+            await showItem2Html(type, resource, sse);
+        }
     }
 }
 
@@ -575,17 +567,8 @@ function mcp2html(type) {
     const td1 = document.createElement('td');
     const td2 = document.createElement('td');
     td1.style = "border: 1px dotted;";
-    if (type == 'tools') {
-        td1.innerHTML = "Tool集合";
-        td2.className = "tools";
-
-    } else if (type == 'prompts') {
-        td1.innerHTML = "prompt集合";
-        td2.className = "prompts";
-    } else if (type == 'resources') {
-        td1.innerHTML = "resource集合";
-        td2.className = "resources";
-    }
+    td1.innerHTML = type;
+    td2.className = type;
     td2.style = "padding-left: 28px;";
     tr.appendChild(td1);
     tr.appendChild(td2);
@@ -606,65 +589,89 @@ async function showItem2Html(type, item, sse) {
 
     var button = document.createElement("button");
     button.textContent = "test";
-    button.role = item.name;
-    button.style = "width:36px;height:25px;";
+    button.style = "width:38px;height:26px;";
+    var ref_count = 0;
     // 调用工具按钮点击事件
     button.addEventListener("click", async function () {
+        changeSize(button, 2);
         button.className = "button";
+        ref_count++;
         button.textContent = "0";
         var container = button.parentElement;
         var inputs = container.querySelectorAll("input");
         var inputData = {};
         inputs.forEach(function (input) {
-            console.log(input.className, input.value);
+            console.log(input.name, input.value);
             var value = input.value;
             if (input.getAttribute('ttype') == 'number') {
                 value = Number(input.value);
             }
-            inputData[input.className] = value;
+            if (input.getAttribute('required') == 'true') {
+                if (value == '' || value == null) {
+                    //这里只提示必填字段，但不阻止继续调用。这样也可看到参数异常时候的调用结果
+                    alert(input.name + ' is required');
+                }
+            }
+            inputData[input.name] = value;
         });
         var jsonData = JSON.stringify(inputData);
         console.log('jsonData', jsonData);
-        var json6 = null;
+        var call_json = null;
         var ii = getIndex();
         if (type == "tools") {
-            json6 = {
+            call_json = {
                 "jsonrpc": "2.0",
                 "id": ii,
-                "url": mcp_session_url,
+                "url": sse_session_url,
                 "method": "tools/call",
                 "params": {
                     "_meta": {
                         "progressToken": ii
                     },
-                    "name": button.role,
+                    "name": item.name,
                     "arguments": inputData
                 }
             }
         } else if (type == "prompts") {
-            json6 = {
+            call_json = {
                 "jsonrpc": "2.0",
                 "id": ii,
-                "url": mcp_session_url,
+                "url": sse_session_url,
                 "method": "prompts/get",
                 "params": {
                     "_meta": {
                         "progressToken": ii
                     },
-                    "name": button.role,
+                    "name": item.name,
                     "arguments": inputData
                 }
             }
         } else if (type == "resources") {
-            json6 = {
+            call_json = {
                 "jsonrpc": "2.0",
                 "id": ii,
-                "url": mcp_session_url,
+                "url": sse_session_url,
                 "method": "resources/read",
                 "params": inputData
             }
+        } else if (type == "resourceTemplates") {
+            var uri = item.uriTemplate;
+            Object.keys(inputData).forEach(key => {
+                uri = uri.replace('{' + key + '}', inputData[key]);
+            });
+            call_json = {
+                "jsonrpc": "2.0",
+                "id": ii,
+                "url": sse_session_url,
+                "method": "resources/read",
+                "params": {
+                    "_meta": {
+                        "progressToken": ii
+                    },
+                    "uri": uri
+                }
+            }
         }
-
         var item_timer_time = 0;
         var item_timer = setInterval(function () {
             item_timer_time++;
@@ -672,18 +679,20 @@ async function showItem2Html(type, item, sse) {
         }, 1000);
         mcp_calls[ii] = function () {
             button.textContent = "test";
-            button.className = "";
+            changeSize(button, -2);
+            ref_count--;
+            if (ref_count <= 0) {
+                button.className = "";
+            }
             clearInterval(item_timer);
         }
-        console.log('json6', json6);
+        console.log('call_json', call_json);
         if (stdio_WebSocket != null) {
-            showStep('request', json6);
-            stdio_WebSocket.send(JSON.stringify(json6));
+            stdio_WebSocket.send(JSON.stringify(call_json));
         } else {
-            await sendSseMessage(json6, function (headers, json) {
+            await sendSseMessage(call_json, function (headers, json) {
                 //mcp streamable-http 执行后返回的就是执行结果
                 if (sse == false) {
-                    mcp_calls[ii]();
                     showCallResult(json, type);
                 }
             });
@@ -703,6 +712,8 @@ async function showItem2Html(type, item, sse) {
             }
         } else if (type == "prompts") {
             required = propertie.required;
+        } else if (type == "resourceTemplates") {
+            required = true;
         }
         console.log(propertie, required);
         var required_span = '';
@@ -714,6 +725,8 @@ async function showItem2Html(type, item, sse) {
         itemDiv.appendChild(span);
 
         var itemInput = document.createElement('input');
+        itemInput.setAttribute('required', required);
+        itemInput.style = "height:27px;";
         // html 控件类型
         var propertiesType = '';
         if (type == "resources") {
@@ -728,8 +741,7 @@ async function showItem2Html(type, item, sse) {
             itemInput.type = 'input';
             propertiesType = 'text';
         }
-
-        itemInput.className = name;
+        itemInput.name = name;
         itemInput.setAttribute('ttype', propertiesType);
         if (type == "resources") {
             itemInput.setAttribute('placeholder', propertie.description);
@@ -756,9 +768,25 @@ async function showItem2Html(type, item, sse) {
     } else if (type == "resources") {
         item.name = "uri";
         createPropertie(type, item);
+    } else if (type == "resourceTemplates") {
+        const matches = item.uriTemplate.match(/{(.*?)}/g);
+        properties = matches ? matches.map(match => match.slice(1, -1)) : [];
+        if (properties.length > 0) {
+            properties.forEach(function (propertie) {
+                createPropertie(type, propertie);
+            });
+        }
     }
 
     containerTd.appendChild(itemDiv);
+}
+
+//控制按钮长宽变化
+function changeSize(obj, add_number) {
+    let currentWidth = parseInt(window.getComputedStyle(obj).width);
+    let currentHeight = parseInt(window.getComputedStyle(obj).height);
+    obj.style.width = (currentWidth + add_number) + 'px';
+    obj.style.height = (currentHeight + add_number) + 'px';
 }
 
 //显示执行结果
@@ -777,7 +805,7 @@ function showCallResult(json, type) {
             if (json['result']['messages'][0]['content']['type'] == 'text') {
                 alert('result is:' + json['result']['messages'][0]['content']['text']);
             }
-        } else if (type == "resources") {
+        } else if (type == "resources" || type == "resourceTemplates") {
             if (json['result']['contents'][0]['mimeType'] == 'text/plain') {
                 alert('result is:' + json['result']['contents'][0]['text']);
             }
@@ -787,17 +815,27 @@ function showCallResult(json, type) {
     }
 }
 
-async function sendSseMessage(jsonData, func) {
+//mcp 显示资源时保证顺序便于理解
+async function sendSseMessageAsync(jsonData, func) {
+    return await myfetch(jsonData, func)
+}
+
+// 调用时候不需要等待，这样可以并发
+function sendSseMessage(jsonData, func) {
+    return myfetch(jsonData, func)
+}
+
+function myfetch(jsonData, func) {
     showStep('request', jsonData);
-    var url = '/mcp_msg';
+    var url = '/sse_msg';
     if (mcp_href != null) {
         url = mcp_href;
     }
-    headers = {
+    const headers = {
         'Content-Type': 'application/json'
     };
     const mergedHeaders = Object.assign({}, headers, mcp_headers_extra);
-    return await fetch(url, {
+    return fetch(url, {
             method: 'POST',
             headers: mergedHeaders,
             body: JSON.stringify(jsonData)

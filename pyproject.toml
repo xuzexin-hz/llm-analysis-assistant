@@ -1,6 +1,6 @@
 [project]
 name = "llm-logs-analysis"
-version = "v0.1.2"
+version = "v0.2.0"
 authors = [
     { name = "xuzexin", email = "1768527366@qq.com" },
 ]

@@ -1,30 +1,11 @@
 import asyncio
 import json
 import os
-import re
 
+from pages.myMCP import my_json
 from utils.environ_utils import get_query, my_printBody, get_md5, GlobalVal
 from utils.http_clientx import http_clientx
 from utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
-
-
-def my_json(data):
-    # 使用正则表达式提取 event 和 data
-    pattern = r'event:\s*(?P<event>.*?)\s*data:\s*(?P<data>.*)'
-    match = re.match(pattern, data)
-    if match:
-        # 提取 event 和 data
-        event = match.group('event').strip()
-        data_field = match.group('data').strip()
-        # 创建 JSON 对象
-        json_output = {
-            "event": event,
-            "data": data_field
-        }
-        # 将 JSON 对象转换为字符串
-        return json.dumps(json_output)
-    else:
-        return None
 
 
 async def mySSE_sse(is_http, send, num, http_url):
@@ -88,7 +69,7 @@ async def mySSE_msg(data, num, has_same_log, http_url):
         return
     client = http_clientx(http_url)
     if data['method'] in ['initialize', 'notifications/initialized', 'tools/list', 'prompts/list', 'resources/list',
-                          'tools/call', 'prompts/get', 'resources/read']:
+                          'tools/call', 'prompts/get', 'resources/read', 'resources/templates/list']:
         if 'url' in data:
             del data['url']
         headers = {'Content-Type': 'application/json'}

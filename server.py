@@ -1,8 +1,6 @@
 import argparse
 import asyncio
-import logging
 import os
-import re
 import socket
 
 import uvicorn
@@ -36,10 +34,10 @@ class App:
             await send({
                 'type': 'websocket.accept',
             })
-
             if scope['path'] == '/logs_ws':
                 # 调用 WebSocket 应用程序进行处理
-                await logs_stream_show()
+                latest_time = get_query('tt')
+                await logs_stream_show(float(latest_time))
             elif scope['path'] == '/sse_ws':
                 num = get_num()
                 myself.server.num = num
@@ -49,6 +47,10 @@ class App:
                     await myStdio_msg(command, receive, send, num)
                 else:
                     await mySSE_init(scope, receive, send, num)
+                await send({
+                    'type': 'websocket.close',
+                })
+                await asyncio.sleep(0)
 
 
 async def set_my_environ(myself):
@@ -103,7 +105,7 @@ def print_logo():
     `--''        \   \  /   ---`-'    ---`-'                      `--''            \   \ .'    '---'    
                   `----'                                                            `---`               
                                                                                                     
-    v0.1.2 - building the best open-source LLM logs analysis system.
+    v0.2.0 - building the best open-source LLM logs analysis system.
     
     https://github.com/xuzexin-hz/llm-logs-analysis
     """
@@ -117,28 +119,6 @@ def __is_port_in_use(port):
             return True
         except ConnectionRefusedError:
             return False
-
-
-class CustomJsonFormatter(logging.Formatter):
-    def format(self, record):
-        # Define the regex pattern to extract log components
-        pattern = r'(?P<ip>[^ ]+) - "(?P<method>[^ ]+) (?P<path>[^ ]+) (?P<protocol>[^"]+)" (?P<status>\d+)'
-        match = re.match(pattern, record.getMessage())
-
-        # If the log message matches the expected format, extract the components
-        if match:
-            log_data = {
-                'ip': match.group('ip'),
-                'method': match.group('method'),
-                'path': match.group('path'),
-                'protocol': match.group('protocol'),
-                'status': match.group('status')
-            }
-            record.message_json = log_data
-        else:
-            # 防止初始化时候没有ip格式日志出错
-            record.message_json = {}
-        return super().format(record)
 
 
 def run_server(port=8000):
@@ -163,7 +143,7 @@ def run_server(port=8000):
                 "fmt": "%(levelprefix)s %(message)s",
             },
             "access": {
-                "()": "server.CustomJsonFormatter",
+                "()": "utils.logs_utils.CustomJsonFormatter",
                 "fmt": "{'asctime':'%(asctime)s','name':'%(name)s','level':'%(levelname)s','data':%(message_json)s}",
             },
         },

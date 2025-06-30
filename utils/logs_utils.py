@@ -1,7 +1,9 @@
 import asyncio
 import glob
 import json
+import logging
 import os
+import re
 from datetime import datetime
 from enum import Enum
 
@@ -9,6 +11,28 @@ from utils.environ_utils import get_base_path, my_printBodyWS
 
 base_path = get_base_path()
 LOG_END_SYMBOL = '----------end----------'
+
+
+class CustomJsonFormatter(logging.Formatter):
+    def format(self, record):
+        # Define the regex pattern to extract log components
+        pattern = r'(?P<ip>[^ ]+) - "(?P<method>[^ ]+) (?P<path>[^ ]+) (?P<protocol>[^"]+)" (?P<status>\d+)'
+        match = re.match(pattern, record.getMessage())
+
+        # If the log message matches the expected format, extract the components
+        if match:
+            log_data = {
+                'ip': match.group('ip'),
+                'method': match.group('method'),
+                'path': match.group('path'),
+                'protocol': match.group('protocol'),
+                'status': match.group('status')
+            }
+            record.message_json = log_data
+        else:
+            # 防止初始化时候没有ip格式日志出错
+            record.message_json = {}
+        return super().format(record)
 
 
 class LogType(Enum):
@@ -91,7 +115,7 @@ def write_httplog(enum: LogType, msg, num):
         file.write(f"\n{msg}\n")
 
 
-async def logs_stream_show():
+async def logs_stream_show(latest_time: float = 0):
     def get_logs_file(latest_time_input):
         folder_path = get_folder_path()
         log_files = glob.glob(os.path.join(folder_path, '*.log'))
@@ -145,7 +169,12 @@ async def logs_stream_show():
         if latest_time_this is not None:
             latest_time_input = latest_time_this
             for log_file in sorted_log_files:
-                await my_printBodyWS(os.path.basename(log_file) + "<br>")
+                f = {
+                    "file": os.path.basename(log_file),
+                    'ctime': os.path.getctime(log_file)
+                }
+                await my_printBodyWS(json.dumps(f))
+                await my_printBodyWS("<br>")
                 line_num = 0
                 file_end = False
                 wait_num = 0
@@ -165,5 +194,4 @@ async def logs_stream_show():
         await asyncio.sleep(5)
         await logs_scroll_show(latest_time_input)
 
-    latest_time = None
     await logs_scroll_show(latest_time)

@@ -15,6 +15,19 @@ document.addEventListener('DOMContentLoaded', function () {
     var newP = document.createElement('p');
     newP.className = 'logs';
     document.body.appendChild(newP);
+    const container = document.querySelector('body');
+    const button = document.createElement('button');
+    button.className = 'clear';
+    button.textContent = "clear";
+    button.style = "height:25px;";
+    button.addEventListener("click", function () {
+        document.querySelector('.logs').innerHTML = '';
+    });
+    if (container.firstChild) {
+        container.insertBefore(button, container.firstChild);
+    } else {
+        container.appendChild(button);
+    }
 });
 
 function isValidJSON(str) {
@@ -25,7 +38,11 @@ function isValidJSON(str) {
     }
 }
 
-const ws = new WebSocket('ws://localhost:' + ws_port + '/logs_ws');
+var latest_time = 0;
+if (sessionStorage.getItem('latest_time') != null) {
+    latest_time = sessionStorage.getItem('latest_time');
+}
+const ws = new WebSocket('ws://localhost:' + ws_port + '/logs_ws?tt=' + latest_time);
 ws.onopen = () => {
     console.log('Connected to WebSocket server');
 };
@@ -33,6 +50,12 @@ ws.onmessage = (event) => {
     var json = isValidJSON(event.data);
     console.log(json);
     if (json) {
+        if (json.hasOwnProperty('file') && json.hasOwnProperty('ctime')) {
+            latest_time = json['ctime'];
+            sessionStorage.setItem('latest_time', latest_time);
+            document.querySelector('.logs').innerHTML += json['file'];
+            return
+        }
         var data = isValidJSON(json['data']['data']);
         if (data) {
             var style = '';
@@ -44,7 +67,8 @@ ws.onmessage = (event) => {
                 style = 'color: red;';
             }
             var formattedJson = JSON.stringify(data, null, 2);
-            document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' + '<br/>';
+            document.querySelector('.logs').innerHTML += json['line_num'] + ': ' +
+                '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' + '<br/>';
         } else {
             document.querySelector('.logs').innerHTML += json['line_num'] + ': ' + json['data']['data'] + '<br/>';
         }

@@ -22,16 +22,18 @@ async def my_POST():
     if stream is None:
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
-    # msc sse的网页调用
-    if '/mcp_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
+    # mcp sse的调用
+    if '/sse_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         http_url = post_json.get('url')
+        # llm调用mcp时候
         if http_url is None and os.environ.get("MCP_HTTP_URL") is not None:
             parsed_url = urlparse(os.environ.get("MCP_HTTP_URL"))
             http_url = parsed_url.scheme + "://" + parsed_url.netloc + '' + url_path
+        # llm调用mcp时候
         if '/messages/' in url_path or '/message?' in url_path:
             md5_str = get_md5(url_path)
-        elif '/mcp_msg' in url_path:
+        elif '/sse_msg' in url_path:
             parsed_url = urlparse(post_json.get('url'))
             md5_str = get_md5(parsed_url.path + "?" + parsed_url.query)
         has_same_log = False
@@ -47,6 +49,7 @@ async def my_POST():
     num = get_num()
     write_httplog(LogType.POST, url_path, num)
     write_httplog(LogType.REQ, req_str, num)
+    # mcp streamable-http的调用
     if '/mcp' in url_path:
         await myMCP_msg(post_json, num)
         return
