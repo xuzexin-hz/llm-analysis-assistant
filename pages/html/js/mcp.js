@@ -409,7 +409,7 @@ async function mcpStdio(type) {
     } else if (type == 'resourceTemplates') {
         ii = getIndex();
         console.log('resources_templates_list_json', resources_templates_list_json);
-        //await toStdioMsg(resources_templates_list_json, 200);
+        await toStdioMsg(resources_templates_list_json, 200);
     } else if (stdio_step == 0) {
         // id 默认为0
         console.log('initialize_json', initialize_json);
