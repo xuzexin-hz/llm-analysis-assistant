@@ -227,12 +227,19 @@ function getIndex() {
 
 var stdio_WebSocket = null;
 var stdio_step = 0;
-if (url == null) {
+if (url == 'stdio') {
     var stdio_command = localStorage.getItem('stdio_command');
-    var command = prompt("Please enter the stdio service command(like:python -m mcp_server_fetch ++user=xxx)",
+    var command = prompt(
+        "Please enter the stdio service command(like:python -m mcp_server_time --local-timezone=Asia/Shanghai ++user=xxx)",
         localStorage.hasOwnProperty(
-            'stdio_command') ? stdio_command : "python -m mcp_server_fetch");
+            'stdio_command') ? stdio_command :
+        "python -m mcp_server_time --local-timezone=Asia/Shanghai ++user=xxx");
     if (command == null) {
+        alert('User cancels operation');
+        throw new Error("User cancels operation");
+    }
+    if (command == '') {
+        alert('command is null');
         throw new Error("command is null");
     }
     localStorage.setItem('stdio_command', command);
@@ -257,25 +264,31 @@ if (url == null) {
     stdio_WebSocket.onmessage = async (event) => {
         var json = isValidJSON(event.data);
         showStep('response', json);
-        if (!json['logger']) {
-            stdio_step = stdio_step + 1;
-            await mcpStdio();
-        }
-        if (json['result']) {
-            //判断包含哪些资源
-            if (json['result']['capabilities']) {
-                if (json['result']['capabilities']['tools']) {
-                    await mcpStdio('tools');
+        if (json) {
+            if (!json['logger']) {
+                stdio_step = stdio_step + 1;
+                await mcpStdio();
+            }
+            if (json['result']) {
+                //判断包含哪些资源
+                if (json['result']['capabilities']) {
+                    if (json['result']['capabilities']['tools']) {
+                        await mcpStdio('tools');
+                    }
+                    if (json['result']['capabilities']['prompts']) {
+                        await mcpStdio('prompts');
+                    }
+                    if (json['result']['capabilities']['resources']) {
+                        await mcpStdio('resources');
+                        await mcpStdio('resourceTemplates');
+                    }
+                } else {
+                    await showResultAndCall(json);
                 }
-                if (json['result']['capabilities']['prompts']) {
-                    await mcpStdio('prompts');
+            } else {
+                if (json == false) {
+                    alert(event.data);
                 }
-                if (json['result']['capabilities']['resources']) {
-                    await mcpStdio('resources');
-                    await mcpStdio('resourceTemplates');
-                }
-            } else{
-                await showResultAndCall(json);
             }
         } else {
             if (json == false) {
@@ -291,10 +304,13 @@ if (url == null) {
         }
     };
 } else {
-    var mcp = new URL(url);
-    if (url == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
+    var mcp = null;
+    if (URL.canParse(url)) {
+        mcp = new URL(url);
+    }
+    if (url == null || mcp == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
         alert(
-            "Invalid URL format, please check whether it complies with the mcp-sse or mcp-streamable-http specifications."
+            "Invalid URL format, please check whether it complies with the mcp-stdio or mcp-sse or mcp-streamable-http specifications."
         );
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
@@ -307,7 +323,7 @@ if (url == null) {
         };
         sse_WebSocket.onmessage = async (event) => {
             var json = isValidJSON(event.data);
-            await mcpSSE(json,event);
+            await mcpSSE(json, event);
         };
         sse_WebSocket.onclose = () => {
             console.log('sse_WebSocket:Disconnected from WebSocket server');
@@ -446,7 +462,7 @@ async function mcpSSE(json_in, event) {
             sse_session_url = (new URL(url)).origin + json_in['data'];
             console.log('initialize_json', initialize_json);
             await sendSseMessageAsync(initialize_json);
-        } else {console.log('xzxzx', json_in);window.json_in=json_in;
+        } else {
             var json = json_in['data'];
             if (json['result']) {
                 if (json['result']['protocolVersion']) {
@@ -471,6 +487,10 @@ async function mcpSSE(json_in, event) {
                     alert(event.data);
                 }
             }
+        }
+    } else {
+        if (json_in == false) {
+            alert(event.data);
         }
     }
 }
@@ -688,6 +708,7 @@ async function showItem2Html(type, item, sse) {
         }
         console.log('call_json', call_json);
         if (stdio_WebSocket != null) {
+            showStep('request', call_json);
             stdio_WebSocket.send(JSON.stringify(call_json));
         } else {
             await sendSseMessage(call_json, function (headers, json) {
@@ -749,6 +770,9 @@ async function showItem2Html(type, item, sse) {
             itemInput.setAttribute('placeholder', propertie.description);
         } else if (properties[propertie] != null && properties[propertie].hasOwnProperty('description')) {
             itemInput.setAttribute('placeholder', properties[propertie].description);
+        }
+        if (itemInput.getAttribute('placeholder') != null) {
+            itemInput.setAttribute('title', itemInput.getAttribute('placeholder'));
         }
         itemDiv.appendChild(itemInput);
     }
@@ -870,6 +894,7 @@ function myfetch(jsonData, func) {
             }
         })
         .catch(error => {
+            alert(error);
             console.error('Error:', error);
         });
 }

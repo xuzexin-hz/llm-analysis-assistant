@@ -121,7 +121,7 @@ def __is_port_in_use(port):
             return False
 
 
-def run_server(port=8000):
+def run_server(port):
     if __is_port_in_use(port):
         print(f"Port {port} is already in use. Please choose a different port.")
         return
@@ -177,18 +177,18 @@ def run_server(port=8000):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='HTTP server.')
-    parser.add_argument('-p', '--port', type=int, default=8000, help='Port number to listen on (default: 8000)')
-    parser.add_argument('-bu', '--base_url', type=str, default='http://127.0.0.1:11434',
+    parser.add_argument('--port', type=int, default=8000, help='Port number to listen on (default: 8000)')
+    parser.add_argument('--base_url', type=str, default='http://127.0.0.1:11434',
                         help='The OpenAi base_url (default: http://127.0.0.1:11434)')
-    parser.add_argument('-mock', '--is_mock', type=str, default='False',
+    parser.add_argument('--is_mock', type=str, default='False',
                         help='Control whether to enable the mock function for testing streaming output')
-    parser.add_argument('-single_word', '--is_single_word', type=str, default='False',
+    parser.add_argument('--single_word', type=str, default='False',
                         help='Is the streaming output mock data displayed word for word')
-    parser.add_argument('-ms', '--mock_string', type=str, default=None,
+    parser.add_argument('--mock_string', type=str, default=None,
                         help='mock data of OpenAI and OLAM')
-    parser.add_argument('-msc', '--mock_count', type=int, default=3,
+    parser.add_argument('--mock_count', type=int, default=3,
                         help='mock data loop count')
-    parser.add_argument('-looptime', '--looptime', type=float, default=0.35,
+    parser.add_argument('--looptime', type=float, default=0.35,
                         help='Simulated data loop tentative time (second)')
     args = parser.parse_args()
     os.environ["OPENAI_BASE_URL"] = args.base_url
@@ -200,7 +200,7 @@ if __name__ == '__main__':
         os.environ["mock_string"] = args.mock_string
     os.environ["mock_count"] = str(args.mock_count)
     os.environ["port"] = str(args.port)
-    if args.is_single_word.lower() == 'true' or args.is_single_word.lower() == '1':
+    if args.single_word.lower() == 'true' or args.single_word.lower() == '1':
         os.environ["single_word"] = 'True'
     else:
         os.environ["single_word"] = 'False'

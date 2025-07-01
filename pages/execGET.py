@@ -50,6 +50,7 @@ async def my_GET():
             server = get_request_server()
             await streamHeader()
             await mySSE_sse(True, server.send, num, http_url)
+        return
     if http_url is not None:
         write_httplog(LogType.GET, url_path, num)
         api_key = get_apikey()
