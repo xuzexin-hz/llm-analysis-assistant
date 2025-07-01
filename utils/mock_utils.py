@@ -37,13 +37,14 @@ async def create_staticData(num, model, res_type):
         completion = [
             f'{{ "model": "{model}", "created_at": "{formatted_time}", "message": {{ "role": "assistant", "content": "{content} -- by ollama" }}, "done": true, "total_duration": 5191566416, "load_duration": 2154458, "prompt_eval_count": 26, "prompt_eval_duration": 383809000, "eval_count": 298, "eval_duration": 4799921000 }}\n\n'
         ]
-    # 在一个循环中发送数据
-    for _ in range(1):
-        # 遍历 completion 列表
-        for chunk in completion:
-            await my_printBody(chunk)
-            write_httplog(LogType.REC, chunk, num)
+    elif res_type == 8:
+        completion = [
+            f'{{ "id": "", "object": "response", "created_at": {my_time}, "status": "completed", "error": null, "incomplete_details": null, "instructions": null, "max_output_tokens": null, "model": "{model}", "output": [ {{ "type": "message", "id": "", "status": "completed", "role": "assistant", "content": [ {{ "type": "output_text", "text": "{content} -- by openai", "annotations": [] }} ] }} ], "parallel_tool_calls": true, "previous_response_id": null, "reasoning": {{ "effort": null, "summary": null }}, "store": true, "temperature": 1.0, "text": {{ "format": {{ "type": "text" }} }}, "tool_choice": "auto", "tools": [], "top_p": 1.0, "truncation": "disabled", "usage": {{"input_tokens": 1, "input_tokens_details": {{"cached_tokens": 0 }}, "output_tokens": 1, "output_tokens_details": {{"reasoning_tokens": 0 }}, "total_tokens": 1 }}, "user": null, "metadata": {{}} }}\n\n'
+        ]
 
+    for chunk in completion:
+        await my_printBody(chunk)
+        write_httplog(LogType.REC, chunk, num)
     await my_printBody('', True)
 
 

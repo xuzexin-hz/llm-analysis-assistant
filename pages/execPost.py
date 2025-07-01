@@ -22,16 +22,18 @@ async def my_POST():
     if stream is None:
         stream = False
     req_str = json.dumps(post_json, ensure_ascii=False)
-    # msc sse的网页调用
-    if '/mcp_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
+    # mcp sse的调用
+    if '/sse_msg' in url_path or '/messages/' in url_path or '/message?' in url_path:
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         http_url = post_json.get('url')
+        # llm调用mcp时候
         if http_url is None and os.environ.get("MCP_HTTP_URL") is not None:
             parsed_url = urlparse(os.environ.get("MCP_HTTP_URL"))
             http_url = parsed_url.scheme + "://" + parsed_url.netloc + '' + url_path
+        # llm调用mcp时候
         if '/messages/' in url_path or '/message?' in url_path:
             md5_str = get_md5(url_path)
-        elif '/mcp_msg' in url_path:
+        elif '/sse_msg' in url_path:
             parsed_url = urlparse(post_json.get('url'))
             md5_str = get_md5(parsed_url.path + "?" + parsed_url.query)
         has_same_log = False
@@ -47,6 +49,7 @@ async def my_POST():
     num = get_num()
     write_httplog(LogType.POST, url_path, num)
     write_httplog(LogType.REQ, req_str, num)
+    # mcp streamable-http的调用
     if '/mcp' in url_path:
         await myMCP_msg(post_json, num)
         return
@@ -54,11 +57,11 @@ async def my_POST():
     res_type = None
     if '/v1/completions' in url_path:
         res_type = 1
-    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path or '/v1/responses' in url_path:
+    elif '/v1/chat/completions' in url_path or '/chat/completions' in url_path:
         res_type = 2
     elif '/completions' in url_path:
         res_type = 1
-    elif 'v1/embeddings' in url_path:
+    elif '/v1/embeddings' in url_path:
         res_type = 3
     elif '/api/generate' in url_path:
         res_type = 4
@@ -68,10 +71,12 @@ async def my_POST():
         res_type = 6
     elif '/api/embed' in url_path:
         res_type = 7
+    elif '/v1/responses' in url_path:
+        res_type = 8
     headers = {'Authorization': f'Bearer {api_key}'}
     http_url = None
     is_mock = False
-    if is_mock_str == 'True' and res_type in [1, 2, 4, 5]:
+    if is_mock_str == 'True' and res_type in [1, 2, 4, 5, 8]:
         is_mock = True
     if res_type in [4, 5]:
         if stream is None:
@@ -96,7 +101,10 @@ async def my_POST():
         http_url = base_url + '/api/show'
     elif res_type == 7:
         http_url = base_url + '/api/embed'
+    elif res_type == 8:
+        http_url = base_url + '/v1/responses'
     # 模拟openai数据接口
+
     if is_mock:
         pass
     else:
