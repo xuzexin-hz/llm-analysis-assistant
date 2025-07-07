@@ -107,7 +107,7 @@ def print_logo():
                                                                                                     
     v0.2.0 - building the best open-source LLM logs analysis system.
     
-    https://github.com/xuzexin-hz/llm-logs-analysis
+    https://github.com/xuzexin-hz/llm-analysis-assistant
     """
     print(logo)
 
@@ -190,19 +190,29 @@ if __name__ == '__main__':
                         help='mock data loop count')
     parser.add_argument('--looptime', type=float, default=0.35,
                         help='Simulated data loop tentative time (second)')
-    args = parser.parse_args()
-    os.environ["OPENAI_BASE_URL"] = args.base_url
-    if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
-        os.environ["IS_MOCK"] = 'True'
+    args, argv = parser.parse_known_args()
+    if len(argv) == 0:
+        args = parser.parse_args()
+        os.environ["OPENAI_BASE_URL"] = args.base_url
+        if args.is_mock.lower() == 'true' or args.is_mock.lower() == '1':
+            os.environ["IS_MOCK"] = 'True'
+        else:
+            os.environ["IS_MOCK"] = 'False'
+        if args.mock_string is not None:
+            os.environ["mock_string"] = args.mock_string
+        os.environ["mock_count"] = str(args.mock_count)
+        os.environ["port"] = str(args.port)
+        if args.single_word.lower() == 'true' or args.single_word.lower() == '1':
+            os.environ["single_word"] = 'True'
+        else:
+            os.environ["single_word"] = 'False'
+        os.environ["looptime"] = str(args.looptime)
+        run_server(args.port)
     else:
-        os.environ["IS_MOCK"] = 'False'
-    if args.mock_string is not None:
-        os.environ["mock_string"] = args.mock_string
-    os.environ["mock_count"] = str(args.mock_count)
-    os.environ["port"] = str(args.port)
-    if args.single_word.lower() == 'true' or args.single_word.lower() == '1':
-        os.environ["single_word"] = 'True'
-    else:
-        os.environ["single_word"] = 'False'
-    os.environ["looptime"] = str(args.looptime)
-    run_server(args.port)
+        import sys
+
+        args = sys.argv
+        if len(args) == 2:
+            command = args[1]
+            num = get_num()
+            asyncio.run(myStdio_msg(command, None, None, num))

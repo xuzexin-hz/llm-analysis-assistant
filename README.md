@@ -10,7 +10,7 @@ MCP is also an important part of LLM, so this project can also be used as an mcp
 # 🌟 Main features
 ### Function list:
 1. **mcp client (already supports stdio/sse/streamableHttp calls)**
-2. **mcp initialization detection and analysis (such as Cherry Studio supports sse/streamableHttp)**
+2. **mcp initialization detection and analysis (such as Cherry Studio supports stdio/sse/streamableHttp)**
 3. **Detect ollama/openai interface and generate analysis log**
 4. **mock ollama/openai interface data**
 
@@ -21,7 +21,8 @@ MCP is also an important part of LLM, so this project can also be used as an mcp
 4. **log display real-time refresh, breakpoint continuation**
 5. **py socket write http client, support get/post, and their respective streaming output**
 6. **webSocket combined with asyncio use**
-7. **py program packaged into exe**
+7. **threading/queue use**
+8. **py program packaged into exe**
 
 # 2. Project Background
 Before the arrival of true AGI, we will have to go through a long journey, during which we will have to face constant challenges. Whether ordinary people or professionals, their lives will be changed.
@@ -46,8 +47,8 @@ Please check for other platforms
 ```sh
 
 # clone git
-git clone https://github.com/xuzexin-hz/llm-logs-analysis.git
-cd llm-logs-analysis
+git clone https://github.com/xuzexin-hz/llm-analysis-assistant.git
+cd llm-analysis-assistant
 
 # Install the extension
 uv sync
@@ -105,6 +106,10 @@ mcp-sse logic details (for similarities and differences with stdio/streamableHtt
 Open the following address in the browser. In the command line, ++user=xxx means that the system variable is user and the value is xxx
 
 http://127.0.0.1:8000/mcp?url=stdio
+
+Or use Cherry Studio to add the stdio service
+
+![Cherry-Studio-mcp-stdio.png](docs/imgs/Cherry-Studio-mcp-stdio.png)
 
 # Detection and analysis of mcp-sse
 Open the following address in the browser, the url is the sse service address

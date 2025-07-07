@@ -1,4 +1,7 @@
 function load() {
+    var newDbg = document.createElement('div');
+    newDbg.className = 'background';
+    document.body.appendChild(newDbg);
     var newD = document.createElement('div');
     newD.className = 'container';
     document.body.appendChild(newD);
@@ -13,9 +16,9 @@ function load() {
     table.style = "border-spacing: 4px 24px;";
     container.appendChild(table);
     const style = document.createElement("style");
-    //按钮点击后的扫灯效果
     style.innerText =
         `
+        /*按钮点击后的扫灯效果*/
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -64,6 +67,41 @@ function load() {
             100% {
                 opacity: 1;
             }
+        }
+        /*显示图片效果*/
+        .fade-out-background {
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            width: 500px;
+            height: 500px;
+            animation: fadeOut 5s linear forwards;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            overflow: hidden;
+            z-index: 999;
+        }
+        @keyframes fadeOut {
+            0% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+        /*显示链接效果*/
+        .a-type {
+            margin: 10px;
+            padding: 10px;
+            text-decoration: none;
+            color: white;
+            background-color: #0c154582;
+            border-radius: 22px;
+        }
+        .a-type:hover {
+            background-color: #bf7dda;
         }
     `;
     document.body.appendChild(style);
@@ -129,7 +167,7 @@ var initialize_json = {
             }
         },
         "clientInfo": {
-            "name": "llm-logs-analysis",
+            "name": "llm-analysis-assistant",
             "version": "v0.2.0"
         }
     },
@@ -309,9 +347,29 @@ if (url == 'stdio') {
         mcp = new URL(url);
     }
     if (url == null || mcp == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
-        alert(
-            "Invalid URL format, please check whether it complies with the mcp-stdio or mcp-sse or mcp-streamable-http specifications."
-        );
+        var base_url = location.pathname;
+        const links = [
+            {
+                text: 'streamable-http',
+                href: base_url + '?url=http://127.0.0.1:8001/mcp'
+            },
+            {
+                text: 'stdio',
+                href: base_url + '?url=stdio'
+            },
+            {
+                text: 'sse',
+                href: base_url + '?url=http://127.0.0.1:8002/sse'
+            },
+        ];
+        links.forEach(link => {
+            const a = document.createElement('a');
+            a.innerHTML = link.text;
+            a.href = link.href;
+            a.target = '_blank';
+            a.classList.add('a-type');
+            document.body.appendChild(a);
+        });
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
     } else if (mcp.pathname.endsWith('/sse')) {
@@ -558,22 +616,30 @@ async function showGetResult(type, data, sse) {
     var jsonData = data;
     console.log('showGetResult+' + type + ":", jsonData);
     if (type == 'tools') {
-        mcp2html(type);
+        if (jsonData.result.tools.length > 0) {
+            mcp2html(type);
+        }
         for (const tool of jsonData.result.tools) {
             await showItem2Html(type, tool, sse);
         }
     } else if (type == 'prompts') {
-        mcp2html(type);
+        if (jsonData.result.prompts.length > 0) {
+            mcp2html(type);
+        }
         for (const tool of jsonData.result.prompts) {
             await showItem2Html(type, tool, sse);
         }
     } else if (type == 'resources') {
-        mcp2html(type);
+        if (jsonData.result.resources.length > 0) {
+            mcp2html(type);
+        }
         for (const resource of jsonData.result.resources) {
             await showItem2Html(type, resource, sse);
         }
     } else if (type == 'resourceTemplates') {
-        mcp2html(type);
+        if (jsonData.result.resourceTemplates.length > 0) {
+            mcp2html(type);
+        }
         for (const resource of jsonData.result.resourceTemplates) {
             await showItem2Html(type, resource, sse);
         }
@@ -823,15 +889,62 @@ function showCallResult(json, type) {
     if (json['result']) {
         if (type == "tools") {
             if (json['result']['content'][0]['type'] == 'text') {
-                alert('result is:' + json['result']['content'][0]['text']);
+                if (json['result']['content'].length > 1) {
+                    var list = [];
+                    for (var i = 0; i < json['result']['content'].length; i++) {
+                        list.push(json['result']['content'][i]['text']);
+                    }
+                    alert('result is:' + JSON.stringify(list));
+                } else {
+                    alert('result is:' + json['result']['content'][0]['text']);
+                }
+            } else if (json['result']['content'][0]['type'] == 'image') {
+                var data = json['result']['content'][0]['data'];
+                var mimeType = json['result']['content'][0]['mimeType'];
+                var bg = document.querySelector('.background');
+                var img = 'data:' + mimeType + ';base64,' + data;
+                bg.style.backgroundImage = "url('" + img + "')";
+                bg.classList.add('fade-out-background');
+
+                function saveImage() {
+                    const a = document.createElement('a');
+                    a.href = img;
+                    a.download = 'llm-analysis-assistant.' + mimeType.split('/')[1];
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+
+                bg.addEventListener('click', saveImage);
+                setTimeout(function () {
+                    bg.classList.remove('fade-out-background');
+                    bg.style.backgroundImage = '';
+                    bg.removeEventListener('click', saveImage);
+                }, 5000);
             }
         } else if (type == "prompts") {
             if (json['result']['messages'][0]['content']['type'] == 'text') {
-                alert('result is:' + json['result']['messages'][0]['content']['text']);
+                if (json['result']['messages'].length > 1) {
+                    var list = [];
+                    for (var i = 0; i < json['result']['messages'].length; i++) {
+                        list.push(json['result']['messages'][i]['content']['text']);
+                    }
+                    alert('result is:' + JSON.stringify(list));
+                } else {
+                    alert('result is:' + json['result']['messages'][0]['content']['text']);
+                }
             }
         } else if (type == "resources" || type == "resourceTemplates") {
             if (json['result']['contents'][0]['mimeType'] == 'text/plain') {
-                alert('result is:' + json['result']['contents'][0]['text']);
+                if (json['result']['contents'].length > 1) {
+                    var list = [];
+                    for (var i = 0; i < json['result']['contents'].length; i++) {
+                        list.push(json['result']['contents'][i]['text']);
+                    }
+                    alert('result is:' + JSON.stringify(list));
+                } else {
+                    alert('result is:' + json['result']['contents'][0]['text']);
+                }
             }
         }
     } else {

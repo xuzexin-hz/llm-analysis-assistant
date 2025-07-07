@@ -8,7 +8,7 @@ from utils.logs_utils import write_httplog, LogType
 
 
 async def create_staticData(num, model, res_type):
-    content = '我是一个AI助手，属于llm-logs-analysis。'
+    content = '我是一个AI助手，属于llm-analysis-assistant。'
     if os.environ.get('mock_string') is not None:
         content = os.environ.get('mock_string')
     my_time = int(time.time())
