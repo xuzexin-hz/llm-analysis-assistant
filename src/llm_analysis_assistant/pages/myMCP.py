@@ -2,9 +2,9 @@ import json
 import re
 from urllib.parse import urlparse
 
-from utils.environ_utils import get_query, my_printBody, my_printHeader, get_Res_Header
-from utils.http_clientx import http_clientx
-from utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
+from llm_analysis_assistant.utils.environ_utils import get_query, my_printBody, my_printHeader, get_Res_Header
+from llm_analysis_assistant.utils.http_clientx import http_clientx
+from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
 
 
 def my_json(data):

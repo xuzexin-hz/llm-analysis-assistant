@@ -10,7 +10,7 @@ MCP也是LLM中重要的一环,故此项目也可当用做mcp客户端使用,并
 # 🌟 主要特性
 ### 功能列表:	
 1. **mcp客户端(已支持stdio/sse/streamableHttp调用)**
-2. **mcp初始化检测分析(比如Cherry Studio支持sse/streamableHttp)**
+2. **mcp初始化检测分析(比如Cherry Studio支持stdio/sse/streamableHttp)**
 3. **检测ollama/openai接口并生成分析日志**
 4. **mock ollama/openai 接口数据**
 	
@@ -21,7 +21,8 @@ MCP也是LLM中重要的一环,故此项目也可当用做mcp客户端使用,并
 4. **日志显示实时刷新，断点续联**
 5. **py socket写http客户端，支持get/post,及各自流式输出**
 6. **webSocket结合asyncio一起使用**
-7. **py程序打包成exe**
+7. **threading/queue使用**
+8. **py程序打包成exe**
 
 # 2、项目背景
 在真正的AGI到来之前，我们必将经历一段漫长的旅程，期间需要不断面对挑战，无论是普通人还是专业人士，生活都将因此而改变。
@@ -47,8 +48,8 @@ MCP也是LLM中重要的一环,故此项目也可当用做mcp客户端使用,并
 ```sh
 
 # 克隆仓库
-git clone https://github.com/xuzexin-hz/llm-logs-analysis.git
-cd llm-logs-analysis
+git clone https://github.com/xuzexin-hz/llm-analysis-assistant.git
+cd llm-analysis-assistant
 
 # 安装扩展
 uv sync
@@ -107,6 +108,10 @@ mcp-sse逻辑细节(和stdio/streamableHttp的异同点可参考其他资料了�
 浏览器打开下面地址,命令行中++user=xxx 表示系统变量是user,值是xxx
 
 http://127.0.0.1:8000/mcp?url=stdio
+
+或者使用Cherry Studio添加stdio服务
+
+![Cherry-Studio-mcp-stdio.png](docs/imgs/Cherry-Studio-mcp-stdio.png)
 
 # 检测分析mcp-sse
 浏览器打开下面地址，url为sse服务地址

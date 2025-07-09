@@ -1,2 +1,3 @@
 cd ../
-".venv\Scripts\python.exe" server.py
+set PYTHONPATH=src
+".venv\Scripts\python.exe" -m llm_analysis_assistant
