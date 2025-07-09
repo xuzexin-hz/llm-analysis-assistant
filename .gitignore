@@ -172,4 +172,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-logs
+src/llm_analysis_assistant/logs

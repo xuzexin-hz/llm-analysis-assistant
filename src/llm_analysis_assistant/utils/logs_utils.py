@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from enum import Enum
 
-from utils.environ_utils import get_base_path, my_printBodyWS
+from llm_analysis_assistant.utils.environ_utils import get_base_path, my_printBodyWS
 
 base_path = get_base_path()
 LOG_END_SYMBOL = '----------end----------'

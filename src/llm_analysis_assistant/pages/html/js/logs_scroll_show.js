@@ -1,13 +1,13 @@
 var timer = setInterval(function () {
         window.scrollTo(0, document.body.scrollHeight);
-        document.title = 'scroll running';
+        document.title = project_name + ' scroll running';
     }, 16),
     timer_status = !0;
 document.ondblclick = function () {
-    timer_status ? (timer_status = !1, clearInterval(timer), document.title = 'scroll stop') : (timer = setInterval(
+    timer_status ? (timer_status = !1, clearInterval(timer), document.title = project_name + ' scroll stop') : (timer = setInterval(
         function () {
             window.scrollTo(0, document.body.scrollHeight);
-            document.title = 'scroll running';
+            document.title = project_name + ' scroll running';
         }, 16), timer_status = !0)
 };
 
@@ -20,8 +20,10 @@ document.addEventListener('DOMContentLoaded', function () {
     button.className = 'clear';
     button.textContent = "clear";
     button.style = "height:25px;";
+    button.style.display = 'none';
     button.addEventListener("click", function () {
         document.querySelector('.logs').innerHTML = '';
+        button.style.display = 'none';
     });
     if (container.firstChild) {
         container.insertBefore(button, container.firstChild);
@@ -49,6 +51,8 @@ ws.onopen = () => {
 ws.onmessage = (event) => {
     var json = isValidJSON(event.data);
     console.log(json);
+    var clearBtn = document.querySelector('.clear');
+    clearBtn.style.display = 'block';
     if (json) {
         if (json.hasOwnProperty('file') && json.hasOwnProperty('ctime')) {
             latest_time = json['ctime'];

@@ -2,10 +2,10 @@ import asyncio
 import json
 import os
 
-from pages.myMCP import my_json
-from utils.environ_utils import get_query, my_printBody, get_md5, GlobalVal
-from utils.http_clientx import http_clientx
-from utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
+from llm_analysis_assistant.pages.myMCP import my_json
+from llm_analysis_assistant.utils.environ_utils import get_query, my_printBody, get_md5, GlobalVal
+from llm_analysis_assistant.utils.http_clientx import http_clientx
+from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
 
 
 async def mySSE_sse(is_http, send, num, http_url):

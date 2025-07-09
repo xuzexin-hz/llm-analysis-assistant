@@ -8,7 +8,7 @@ import subprocess
 import sys
 import threading
 
-from utils.logs_utils import write_httplog, LogType
+from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType
 
 
 async def myStdio_msg(command, receive, send, num):

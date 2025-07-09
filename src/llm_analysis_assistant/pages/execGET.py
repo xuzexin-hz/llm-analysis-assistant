@@ -1,11 +1,12 @@
 import asyncio
 
-from pages.mySSE import mySSE_sse
-from utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, get_base_url, my_printHeader, \
+from llm_analysis_assistant.pages.mySSE import mySSE_sse
+from llm_analysis_assistant.utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, \
+    get_base_url, my_printHeader, \
     my_printBody, get_Res_Header, get_query, get_request_server
-from utils.http_clientx import http_clientx
-from utils.js_utils import js_show_page
-from utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
+from llm_analysis_assistant.utils.http_clientx import http_clientx
+from llm_analysis_assistant.utils.js_utils import js_show_page
+from llm_analysis_assistant.utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
 
 
 async def my_GET():
@@ -17,13 +18,17 @@ async def my_GET():
                               "Pragma": "no-cache",
                               "Expires": "0"})
         await get_favicon()
-    elif url_path == '/':
-        await streamHeader()
-        str = 'Hello AGI!'
-        str_length = len(str)
-        for i in range(str_length):
-            await my_printBody(str[i], True if i == str_length - 1 else False)
-            await asyncio.sleep(0.35)
+    elif url_path == '/' or url_path == '/?stream=true':
+        sse = get_query('stream')
+        if sse is None:
+            await js_show_page("index")
+        else:
+            await streamHeader()
+            str = 'Hello AGI!'
+            str_length = len(str)
+            for i in range(str_length):
+                await my_printBody(str[i], True if i == str_length - 1 else False)
+                await asyncio.sleep(0.35)
 
     elif url_path == '/stream':
         await streamHeader()

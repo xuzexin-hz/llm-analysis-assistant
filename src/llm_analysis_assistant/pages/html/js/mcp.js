@@ -1,4 +1,5 @@
 function load() {
+    document.title = project_name + "(" + project_version + ")";
     var newDbg = document.createElement('div');
     newDbg.className = 'background';
     document.body.appendChild(newDbg);
@@ -167,8 +168,8 @@ var initialize_json = {
             }
         },
         "clientInfo": {
-            "name": "llm-analysis-assistant",
-            "version": "v0.2.0"
+            "name": project_name,
+            "version": project_version
         }
     },
     "jsonrpc": "2.0",
@@ -362,6 +363,11 @@ if (url == 'stdio') {
                 href: base_url + '?url=http://127.0.0.1:8002/sse'
             },
         ];
+        // 强调循序渐进和强调效率、重点明确 2种模式
+        const timeZoneOffset = new Date().getTimezoneOffset();
+        if (timeZoneOffset === -480) {
+            links.reverse();
+        }
         links.forEach(link => {
             const a = document.createElement('a');
             a.innerHTML = link.text;
@@ -909,7 +915,7 @@ function showCallResult(json, type) {
                 function saveImage() {
                     const a = document.createElement('a');
                     a.href = img;
-                    a.download = 'llm-analysis-assistant.' + mimeType.split('/')[1];
+                    a.download = project_name + '.' + mimeType.split('/')[1];
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);

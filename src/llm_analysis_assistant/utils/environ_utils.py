@@ -2,6 +2,9 @@ import asyncio
 import hashlib
 import json
 import os
+import sys
+import tomllib
+from pathlib import Path
 from typing import Dict
 from urllib.parse import parse_qs
 
@@ -19,7 +22,12 @@ class GlobalVal:
 
 
 def get_base_path():
-    return os.path.abspath(__file__) + "//..//../"
+    if getattr(sys, 'frozen', False):
+        path = Path(os.path.dirname(__file__))
+        parents = path.parent.parent
+        return f"{parents}" + '/src/llm_analysis_assistant/'
+    else:
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), '../')) + "/"
 
 
 async def my_printBody(body: str, end_body=False):
@@ -155,3 +163,25 @@ def get_md5(data):
     md5 = hashlib.md5()
     md5.update(data.encode('utf-8'))
     return md5.hexdigest()
+
+
+def get_project_name():
+    if os.environ.get("PROJECT_NAME") is None:
+        base_path = get_base_path()
+        with open(f"{base_path}/../../pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+        project_name = data["project"]["name"]
+    else:
+        project_name = os.environ.get("PROJECT_NAME")
+    return project_name
+
+
+def get_project_version():
+    if os.environ.get("PROJECT_VERSION") is None:
+        base_path = get_base_path()
+        with open(f"{base_path}/../../pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+        version = data["project"]["version"]
+    else:
+        version = os.environ.get("PROJECT_VERSION")
+    return version
