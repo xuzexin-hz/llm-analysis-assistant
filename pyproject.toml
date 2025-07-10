@@ -1,6 +1,6 @@
 [project]
 name = "llm_analysis_assistant"
-version = "v0.2.1"
+version = "v0.2.3"
 description = "An LLM analysis assistant to help you understand and implement PMF"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -10,7 +10,7 @@ authors = [
 maintainers = [
     { name = 'xuzexin,hz', email = '1768527366@qq.com' },
 ]
-keywords = ["llm", "analysis", "assistant", "uvicorn", "asgi", "mcp", "stdio", "sse", "streamable-http"]
+keywords = ["llm", "analysis", "assistant", "uvicorn", "asgi", "websocket", "mcp", "stdio", "sse", "streamable-http"]
 license = { text = "Apache-2.0" }
 dependencies = [
     "uvicorn[standard]>=0.34.3",

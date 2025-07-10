@@ -13,6 +13,46 @@ async function startStream() {
     }
 }
 
+const style = document.createElement("style");
+style.innerText =
+    `
+        /*显示链接效果*/
+        .a-type {
+            margin: 10px;
+            padding: 10px;
+            text-decoration: none;
+            color: white;
+            background-color: #0c154582;
+            border-radius: 22px;
+        }
+        .a-type:hover {
+            background-color: #bf7dda;
+        }
+    `;
+var base_url = location.pathname;
+document.body.appendChild(style);
+const links = [
+    {
+        text: 'logs',
+        href: base_url + 'logs'
+    },
+    {
+        text: 'mcp',
+        href: base_url + 'mcp'
+    },
+    {
+        text: 'test',
+        href: base_url + 'stream'
+    },
+];
+links.forEach(link => {
+    const a = document.createElement('a');
+    a.innerHTML = link.text;
+    a.href = link.href;
+    a.target = '_blank';
+    a.classList.add('a-type');
+    document.body.appendChild(a);
+});
 var div = document.createElement('div')
 div.id = 'output';
 div.style = 'white-space: pre-wrap;text-align: center;';
