@@ -92,6 +92,20 @@ python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
 ```
 
+### 使用 PIP(🌟)
+
+或者，您可以通过 pip 安装 'llm-analysis-assistant':
+
+```
+pip install llm-analysis-assistant
+```
+
+安装后，您可以使用以下脚本运行它:
+
+```
+python -m llm_analysis_assistant
+```
+
 http://127.0.0.1:8000/logs 实时查看日志
 
 # 检测分析并调用mcp(目前已支持stdio/sse/streamableHttp)

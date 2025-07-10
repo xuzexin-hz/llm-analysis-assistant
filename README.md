@@ -90,6 +90,20 @@ python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
 ```
 
+### Using PIP(🌟)
+
+Alternatively you can install `llm-analysis-assistant` via pip:
+
+```
+pip install llm-analysis-assistant
+```
+
+After installation, you can run it as a script using:
+
+```
+python -m llm_analysis_assistant
+```
+
 http://127.0.0.1:8000/logs View logs in real time
 
 # Detection, analysis and call mcp (currently supports stdio/sse/streamableHttp)
