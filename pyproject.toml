@@ -1,6 +1,6 @@
 [project]
 name = "llm_analysis_assistant"
-version = "v0.2.3"
+version = "v0.2.4"
 description = "An LLM analysis assistant to help you understand and implement PMF"
 readme = "README.md"
 requires-python = ">=3.10"

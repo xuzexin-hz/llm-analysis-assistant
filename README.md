@@ -23,6 +23,7 @@ MCP is also an important part of LLM, so this project can also be used as an mcp
 6. **webSocket combined with asyncio use**
 7. **threading/queue use**
 8. **py program packaged into exe**
+9. **python -m llm_analysis_assistant**
 
 # 2. Project Background
 Before the arrival of true AGI, we will have to go through a long journey, during which we will have to face constant challenges. Whether ordinary people or professionals, their lives will be changed.
@@ -88,6 +89,15 @@ python server.py --is_mock=true --mock_string=你好啊 --single_word=true
 #--looptime, mock streaming output return data interval, the default is 0.35 seconds, set looptime=1 when streaming output display data speed will be slow
 python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
+```
+
+### Using uv (recommended)
+
+When using [`uv`](https://docs.astral.sh/uv/) no specific installation is needed. We will use 
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) to directly run *llm-analysis-assistant*.
+
+```
+uvx llm_analysis_assistant
 ```
 
 ### Using PIP(🌟)

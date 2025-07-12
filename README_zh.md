@@ -23,6 +23,7 @@ MCP也是LLM中重要的一环,故此项目也可当用做mcp客户端使用,并
 6. **webSocket结合asyncio一起使用**
 7. **threading/queue使用**
 8. **py程序打包成exe**
+9. **支持python -m**
 
 # 2、项目背景
 在真正的AGI到来之前，我们必将经历一段漫长的旅程，期间需要不断面对挑战，无论是普通人还是专业人士，生活都将因此而改变。
@@ -90,6 +91,15 @@ python server.py --is_mock=true --mock_string=你好啊 --single_word=true
 #--looptime，mock流式输出时返回数据的间隔时间，默认是0.35秒,设置looptime=1后流式输出时候显示数据速度就会慢
 python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
+```
+
+### 使用 uv（推荐）
+
+使用 [`uv`](https://docs.astral.sh/uv/) 时无需特殊安装。我们将使用
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) 直接运行 *llm-analysis-assistant*。
+
+```
+uvx llm_analysis_assistant
 ```
 
 ### 使用 PIP(🌟)

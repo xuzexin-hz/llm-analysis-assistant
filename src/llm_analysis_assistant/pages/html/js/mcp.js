@@ -93,6 +93,10 @@ function load() {
             }
         }
         /*显示链接效果*/
+        .a-container {
+          display: flex;
+          gap: 30px;
+        }
         .a-type {
             margin: 10px;
             padding: 10px;
@@ -100,6 +104,7 @@ function load() {
             color: white;
             background-color: #0c154582;
             border-radius: 22px;
+            transition: transform 0.3s ease, background-color 0.3s ease;
         }
         .a-type:hover {
             background-color: #bf7dda;
@@ -349,6 +354,8 @@ if (url == 'stdio') {
     }
     if (url == null || mcp == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
         var base_url = location.pathname;
+        const container = document.createElement('div');
+        container.className = 'a-container';
         const links = [
             {
                 text: 'streamable-http',
@@ -374,8 +381,30 @@ if (url == 'stdio') {
             a.href = link.href;
             a.target = '_blank';
             a.classList.add('a-type');
-            document.body.appendChild(a);
+            container.appendChild(a);
         });
+        document.body.appendChild(container);
+        let paused = false;
+        let tick = 0;
+        const a_links = document.querySelectorAll('.a-type');
+
+        function animate() {
+            if (!paused) {
+                tick += 0.005;
+                a_links.forEach((el, i) => {
+                    const y = Math.sin(tick + i) * 10;
+                    el.style.transform = `translateY(${y}px)`;
+                });
+            }
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+        a_links.forEach(el => {
+            el.addEventListener('mouseenter', () => paused = true);
+            el.addEventListener('mouseleave', () => paused = false);
+        });
+
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
     } else if (mcp.pathname.endsWith('/sse')) {
