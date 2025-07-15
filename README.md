@@ -140,6 +140,8 @@ Open the following address in the browser, the url is the sse service address
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8002/sse?++user=xxx # ++user=xxx in the url means the HTTP request header user value is xxx
+
 Or use Cherry Studio to add the mcp service
 
 ![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
@@ -148,6 +150,8 @@ Or use Cherry Studio to add the mcp service
 Open the following address in the browser, the url is the streamableHttp service address
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp?++user=xxx # ++user=xxx in the url means the HTTP request header user value is xxx
 
 Or use Cherry Studio to add the mcp service
 

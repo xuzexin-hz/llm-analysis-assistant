@@ -24,7 +24,7 @@ class http_clientx:
         hostname = url.split("//")[-1].split("/")[0]  # 获取主机名
         # 兼容post的url中带参数
         self.path = url.split(hostname, 1)[1]
-        self.headers = [f'Host: {self.hostname}', 'Connection: close']
+        self.headers = [f'host: {self.hostname}', 'connection: close']
 
     @property
     def text(self):
@@ -93,6 +93,8 @@ class http_clientx:
         # 添加自定义头
         if headers:
             for key, value in headers.items():
+                if key.lower() in ['host', 'connection', 'content-length']:
+                    continue
                 custom_headers.append(f'{key}: {value}')
         # 把所有头信息连接成一个字符串
         headers_string = '\r\n'.join(custom_headers)
@@ -177,6 +179,8 @@ class http_clientx:
         # 添加自定义头
         if headers:
             for key, value in headers.items():
+                if key.lower() in ['host', 'connection', 'content-length']:
+                    continue
                 custom_headers.append(f'{key}: {value}')
         # 把所有头信息连接成一个字符串
         headers_string = '\r\n'.join(custom_headers)

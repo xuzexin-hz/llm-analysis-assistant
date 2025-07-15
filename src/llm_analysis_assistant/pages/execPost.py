@@ -28,15 +28,15 @@ async def my_POST():
         await my_printHeader({"Content-Type": "application/json; charset=utf-8"})
         http_url = post_json.get('url')
         # llm调用mcp时候
-        if http_url is None and os.environ.get("MCP_HTTP_URL") is not None:
-            parsed_url = urlparse(os.environ.get("MCP_HTTP_URL"))
+        if http_url is None and os.environ.get("MCP_SSE_URL") is not None:
+            parsed_url = urlparse(os.environ.get("MCP_SSE_URL"))
             http_url = parsed_url.scheme + "://" + parsed_url.netloc + '' + url_path
+            mcp_sse_url = os.environ.get("MCP_SSE_URL")
+            if mcp_sse_url.find('++') != -1:
+                _envs = mcp_sse_url[mcp_sse_url.index('++'):]
+                http_url = http_url + "&" + os.environ["PROJECT_NAME"] + "_envs=" + _envs
         # llm调用mcp时候
-        if '/messages/' in url_path or '/message?' in url_path:
-            md5_str = get_md5(url_path)
-        elif '/sse_msg' in url_path:
-            parsed_url = urlparse(post_json.get('url'))
-            md5_str = get_md5(parsed_url.path + "?" + parsed_url.query)
+        md5_str = get_md5(http_url)
         has_same_log = False
         if GlobalVal.logsNumList.get(md5_str) is not None:
             same_num = GlobalVal.logsNumList.get(md5_str)
@@ -47,13 +47,23 @@ async def my_POST():
         write_httplog(LogType.REQ, req_str, same_num)
         await mySSE_msg(post_json, same_num, has_same_log, http_url)
         return
+    # mcp streamable-http的调用
+    if '/mcp' in url_path:
+        has_same_log = False
+        md5_str = get_md5(url_path)
+        if GlobalVal.logsNumList.get(md5_str) is not None:
+            same_num = GlobalVal.logsNumList.get(md5_str)
+            has_same_log = True
+        else:
+            same_num = get_num()
+            GlobalVal.logsNumList[md5_str] = same_num
+        write_httplog(LogType.POST, url_path, same_num)
+        write_httplog(LogType.REQ, req_str, same_num)
+        await myMCP_msg(post_json, same_num, has_same_log)
+        return
     num = get_num()
     write_httplog(LogType.POST, url_path, num)
     write_httplog(LogType.REQ, req_str, num)
-    # mcp streamable-http的调用
-    if '/mcp' in url_path:
-        await myMCP_msg(post_json, num)
-        return
     is_mock_str = os.environ.get("IS_MOCK")
     res_type = None
     if '/v1/completions' in url_path:

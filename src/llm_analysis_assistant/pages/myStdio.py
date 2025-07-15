@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 
+from llm_analysis_assistant.utils.environ_utils import parse_string_to_args, remove_args_after
 from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType
 
 
@@ -203,35 +204,3 @@ def get_executable_path(executable_path, executable_paths):
             executable_path = path
             break
     return executable_path
-
-
-def remove_args_after(argument_string):
-    # 查找 '++' 的位置
-    index = argument_string.find('++')
-    if index != -1:
-        # 如果找到了 '++'，则返回截取 '++' 之前的部分
-        return argument_string[:index].strip()
-    return argument_string.strip()
-
-
-def parse_string_to_args(input_string):
-    """
-    解析类似 "python ++user=xzx" 这样的字符串，提取参数和值。
-
-    Args:
-        input_string:  包含参数的字符串。例如 "python ++user=xzx"
-
-    Returns:
-        一个字典，包含解析出的参数和值。  如果解析失败，返回 None。
-    """
-    args_dict = {}
-    # 使用正则表达式匹配参数和值
-    matches = re.findall(r'\+\+([a-zA-Z0-9-_]+)=([^ ]+)', input_string)  # 匹配 ++key=value，并提取 key 和 value
-    if not matches:
-        return None  # 如果没有找到参数，返回 None
-
-    for match in matches:
-        key, value = match
-        args_dict[key] = value  # 添加到字典中
-
-    return args_dict

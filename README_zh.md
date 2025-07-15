@@ -142,6 +142,8 @@ http://127.0.0.1:8000/mcp?url=stdio
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8002/sse?++user=xxx # url中++user=xxx 表示HTTP请求头user值是xxx
+
 或者使用Cherry Studio添加mcp服务
 
 ![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
@@ -150,6 +152,8 @@ http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 浏览器打开下面地址，url为streamableHttp服务地址
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp?++user=xxx # url中++user=xxx 表示HTTP请求头user值是xxx
 
 或者使用Cherry Studio添加mcp服务
 

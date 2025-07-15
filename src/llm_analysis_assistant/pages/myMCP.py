@@ -2,7 +2,7 @@ import json
 import re
 from urllib.parse import urlparse
 
-from llm_analysis_assistant.utils.environ_utils import get_query, my_printBody, my_printHeader, get_Res_Header
+from llm_analysis_assistant.utils.environ_utils import get_query, my_printBody, my_printHeader, get_real_url
 from llm_analysis_assistant.utils.http_clientx import http_clientx
 from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType, LOG_END_SYMBOL
 
@@ -26,18 +26,18 @@ def my_json(data):
         return None
 
 
-async def myMCP_msg(data, num):
+async def myMCP_msg(data, num, has_same_log):
     try:
         http_url = get_query('url')
         if http_url is None:
             return
+        http_url = http_url.replace('  ', '++')
+        headers, http_url = get_real_url(http_url)
         parsed_url = urlparse(http_url)
         url = parsed_url.scheme + "://" + parsed_url.netloc + '/mcp/'
         client = http_clientx(url)
-        headers = {'Accept': 'application/json,text/event-stream', 'Content-Type': 'application/json'}
-        mcp_session_id = get_Res_Header('mcp-session-id')
-        if mcp_session_id is not None:
-            headers['mcp-session-id'] = mcp_session_id
+        headers['accept'] = 'application/json,text/event-stream'
+        headers['content-type'] = 'application/json'
         response = await client.http_post(headers=headers, data=data)
         jj = response.text
         write_httplog(LogType.RES, jj, num)
@@ -53,7 +53,8 @@ async def myMCP_msg(data, num):
         if my_header_res.get('mcp-session-id') is not None:
             headers_res['mcp-session-id'] = my_header_res.get('mcp-session-id')
         await my_printHeader(headers_res)
-        write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
+        if not has_same_log:
+            write_httplog(LogType.END, '\n\n' + LOG_END_SYMBOL, num)
         await my_printBody(jj, True)
     except Exception as e:
         pass

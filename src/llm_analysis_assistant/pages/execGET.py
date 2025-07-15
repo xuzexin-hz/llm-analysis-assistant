@@ -1,9 +1,10 @@
 import asyncio
+import os
 
 from llm_analysis_assistant.pages.mySSE import mySSE_sse
 from llm_analysis_assistant.utils.environ_utils import get_path, get_favicon, streamHeader, get_apikey, \
     get_base_url, my_printHeader, \
-    my_printBody, get_Res_Header, get_query, get_request_server
+    my_printBody, get_Res_Header, get_query, get_request_server, get_real_url
 from llm_analysis_assistant.utils.http_clientx import http_clientx
 from llm_analysis_assistant.utils.js_utils import js_show_page
 from llm_analysis_assistant.utils.logs_utils import write_httplog, get_num, LOG_END_SYMBOL, LogType
@@ -54,7 +55,10 @@ async def my_GET():
             http_url = get_query('url')
             server = get_request_server()
             await streamHeader()
-            await mySSE_sse(True, server.send, num, http_url)
+            http_url = http_url.replace('  ', '++')
+            os.environ["MCP_SSE_URL"] = http_url
+            headers, http_url = get_real_url(http_url)
+            await mySSE_sse(True, server.send, num, http_url, headers)
         return
     if http_url is not None:
         write_httplog(LogType.GET, url_path, num)

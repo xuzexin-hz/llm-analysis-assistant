@@ -408,7 +408,9 @@ if (url == 'stdio') {
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
     } else if (mcp.pathname.endsWith('/sse')) {
-        const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
+        var pre_url = location.origin + location.pathname + "?url=";
+        const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + encodeURIComponent(location.href
+            .replace(pre_url, '')));
         window.sse_WebSocket = sse_WebSocket;
         sse_WebSocket.onopen = () => {
             showStep('request', url);
@@ -454,7 +456,8 @@ async function showResultAndCall(json) {
 //mcp streamable-http 调用过程
 async function mcpStreamableHttp() {
     // 这样设置，后台处理时候可以兼容llm设置mcp，该服务可以监测的
-    mcp_href = location.href;
+    var pre_url = location.origin + location.pathname + "?url=";
+    mcp_href = pre_url + encodeURIComponent(location.href.replace(pre_url, ''));
     console.log('initialize_json', initialize_json);
     var json = {};
     var res = await sendSseMessageAsync(initialize_json, function (headers, data) {
@@ -553,6 +556,10 @@ async function mcpSSE(json_in, event) {
         showStep('response', json_in);
         if (json_in['event'] == 'endpoint') {
             sse_session_url = (new URL(url)).origin + json_in['data'];
+            if (location.href.indexOf('++') > -1) {
+                sse_session_url = sse_session_url + "&" + project_name + "_envs=" + location.href.substr(location.href
+                    .indexOf('++'));
+            }
             console.log('initialize_json', initialize_json);
             await sendSseMessageAsync(initialize_json);
         } else {

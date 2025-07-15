@@ -2,7 +2,9 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 from typing import Dict
@@ -19,6 +21,17 @@ class GlobalVal:
         if GlobalVal.myHandlerList:
             coroutine_id = id(asyncio.current_task())
             return GlobalVal.myHandlerList[coroutine_id]
+
+
+def get_logs_base_path():
+    if os.environ.get("llm_analysis_assistant_pro") is not None:
+        temp_dir = tempfile.gettempdir()
+        new_folder_name = 'llm_analysis_assistant'
+        new_folder_path = os.path.join(temp_dir, new_folder_name)
+        os.makedirs(new_folder_path, exist_ok=True)
+        return new_folder_path
+    else:
+        return get_base_path()
 
 
 def get_base_path():
@@ -89,6 +102,8 @@ def get_Res_Header(name: str):
     self = GlobalVal.myHandler()
     headers_dict = dict(self.server.scope['headers'])
     headers = {key.decode('utf-8'): value.decode('utf-8') for key, value in headers_dict.items()}
+    if name is None:
+        return headers
     return headers.get(name)
 
 
@@ -185,3 +200,45 @@ def get_project_version():
     else:
         version = os.environ.get("PROJECT_VERSION")
     return version
+
+
+def get_real_url(http_url):
+    headers = get_Res_Header(None)
+    args = parse_string_to_args(http_url)
+    if args is not None:
+        for key, value in args.items():
+            headers[key] = value
+    http_url = remove_args_after(http_url)
+    return headers, http_url
+
+
+def remove_args_after(argument_string):
+    # 查找 '++' 的位置
+    index = argument_string.find('++')
+    if index != -1:
+        # 如果找到了 '++'，则返回截取 '++' 之前的部分
+        return argument_string[:index].strip()
+    return argument_string.strip()
+
+
+def parse_string_to_args(input_string):
+    """
+    解析类似 "python ++user=xzx" 这样的字符串，提取参数和值。
+
+    Args:
+        input_string:  包含参数的字符串。例如 "python ++user=xzx"
+
+    Returns:
+        一个字典，包含解析出的参数和值。  如果解析失败，返回 None。
+    """
+    args_dict = {}
+    # 使用正则表达式匹配参数和值
+    matches = re.findall(r'\+\+([a-zA-Z0-9-_]+)=([^ ]+)', input_string)  # 匹配 ++key=value，并提取 key 和 value
+    if not matches:
+        return None  # 如果没有找到参数，返回 None
+
+    for match in matches:
+        key, value = match
+        args_dict[key] = value  # 添加到字典中
+
+    return args_dict
