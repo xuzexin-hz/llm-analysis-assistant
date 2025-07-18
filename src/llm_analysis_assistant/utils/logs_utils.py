@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from enum import Enum
 
-from llm_analysis_assistant.utils.environ_utils import get_base_path, my_printBodyWS
+from llm_analysis_assistant.utils.environ_utils import get_base_path, my_printBodyWS, get_logs_base_path
 
 base_path = get_base_path()
 LOG_END_SYMBOL = '----------end----------'
@@ -54,7 +54,8 @@ def get_folder_path():
     num = 0
     num_path = f"{base_path}/config/num"
     day = datetime.now().strftime("%Y-%m-%d")
-    folder_path = f"{base_path}/logs/{day}"
+    logs_base_path = get_logs_base_path()
+    folder_path = f"{logs_base_path}/logs/{day}"
     if not os.path.exists(folder_path):
         # 如果不存在，创建文件夹
         os.makedirs(folder_path)

@@ -23,6 +23,7 @@ MCP也是LLM中重要的一环,故此项目也可当用做mcp客户端使用,并
 6. **webSocket结合asyncio一起使用**
 7. **threading/queue使用**
 8. **py程序打包成exe**
+9. **支持python -m**
 
 # 2、项目背景
 在真正的AGI到来之前，我们必将经历一段漫长的旅程，期间需要不断面对挑战，无论是普通人还是专业人士，生活都将因此而改变。
@@ -92,6 +93,15 @@ python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
 ```
 
+### 使用 uv（推荐）
+
+使用 [`uv`](https://docs.astral.sh/uv/) 时无需特殊安装。我们将使用
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) 直接运行 *llm-analysis-assistant*。
+
+```
+uvx llm_analysis_assistant
+```
+
 ### 使用 PIP(🌟)
 
 或者，您可以通过 pip 安装 'llm-analysis-assistant':
@@ -132,6 +142,8 @@ http://127.0.0.1:8000/mcp?url=stdio
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8002/sse?++user=xxx # url中++user=xxx 表示HTTP请求头user值是xxx
+
 或者使用Cherry Studio添加mcp服务
 
 ![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
@@ -140,6 +152,8 @@ http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 浏览器打开下面地址，url为streamableHttp服务地址
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp?++user=xxx # url中++user=xxx 表示HTTP请求头user值是xxx
 
 或者使用Cherry Studio添加mcp服务
 

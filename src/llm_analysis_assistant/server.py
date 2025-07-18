@@ -1,12 +1,14 @@
 import argparse
 import asyncio
+import importlib.metadata
 import os
 import signal
 import socket
 import sys
 import webbrowser
+from pathlib import Path
 
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../'))
 sys.path.append(root_dir)
 import uvicorn
 
@@ -22,13 +24,14 @@ from llm_analysis_assistant.utils.logs_utils import app_init, is_first_open, log
 class App:
 
     async def __call__(self, scope, receive, send):
-        coroutine_id = id(asyncio.current_task())
-        myself = type('DynamicAttr', (object,), {})()
-        myself.server = type('DynamicAttr', (object,), {})()
-        myself.server.scope = scope
-        myself.server.receive = receive
-        myself.server.send = send
-        GlobalVal.myHandlerList[coroutine_id] = myself
+        if scope['type'] != 'lifespan':
+            coroutine_id = id(asyncio.current_task())
+            myself = type('DynamicAttr', (object,), {})()
+            myself.server = type('DynamicAttr', (object,), {})()
+            myself.server.scope = scope
+            myself.server.receive = receive
+            myself.server.send = send
+            GlobalVal.myHandlerList[coroutine_id] = myself
         if scope['type'] == 'http':
             await set_my_environ(myself)
             if scope['method'] == 'GET':
@@ -181,10 +184,21 @@ def run_server(port):
 
 
 def main():
+    try:
+        if __package__ is not None and __package__ != '':
+            os.environ["PROJECT_NAME"] = __package__
+            version = importlib.metadata.version(__package__)
+            os.environ["PROJECT_VERSION"] = 'v' + version
+    except importlib.metadata.PackageNotFoundError:
+        pass
     signal.signal(signal.SIGINT, graceful_exit)
     signal.signal(signal.SIGTERM, graceful_exit)
     os.environ["PROJECT_NAME"] = get_project_name()
     os.environ["PROJECT_VERSION"] = get_project_version()
+    path = Path(os.path.dirname(__file__))
+    parents = path.parent
+    if f"{parents}".endswith('site-packages'):
+        os.environ[os.environ["PROJECT_NAME"] + "_pro"] = 'True'
     parser = argparse.ArgumentParser(description='HTTP server.')
     parser.add_argument('--port', type=int, default=8000, help='Port number to listen on (default: 8000)')
     parser.add_argument('--base_url', type=str, default='http://127.0.0.1:11434',

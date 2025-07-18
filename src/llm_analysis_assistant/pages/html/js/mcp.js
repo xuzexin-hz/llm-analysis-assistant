@@ -93,6 +93,10 @@ function load() {
             }
         }
         /*显示链接效果*/
+        .a-container {
+          display: flex;
+          gap: 30px;
+        }
         .a-type {
             margin: 10px;
             padding: 10px;
@@ -100,6 +104,7 @@ function load() {
             color: white;
             background-color: #0c154582;
             border-radius: 22px;
+            transition: transform 0.3s ease, background-color 0.3s ease;
         }
         .a-type:hover {
             background-color: #bf7dda;
@@ -349,6 +354,8 @@ if (url == 'stdio') {
     }
     if (url == null || mcp == null || !(mcp.pathname.endsWith('/sse') || mcp.pathname.endsWith('/mcp'))) {
         var base_url = location.pathname;
+        const container = document.createElement('div');
+        container.className = 'a-container';
         const links = [
             {
                 text: 'streamable-http',
@@ -374,12 +381,36 @@ if (url == 'stdio') {
             a.href = link.href;
             a.target = '_blank';
             a.classList.add('a-type');
-            document.body.appendChild(a);
+            container.appendChild(a);
         });
+        document.body.appendChild(container);
+        let paused = false;
+        let tick = 0;
+        const a_links = document.querySelectorAll('.a-type');
+
+        function animate() {
+            if (!paused) {
+                tick += 0.005;
+                a_links.forEach((el, i) => {
+                    const y = Math.sin(tick + i) * 10;
+                    el.style.transform = `translateY(${y}px)`;
+                });
+            }
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+        a_links.forEach(el => {
+            el.addEventListener('mouseenter', () => paused = true);
+            el.addEventListener('mouseleave', () => paused = false);
+        });
+
     } else if (mcp.pathname.endsWith('/mcp')) {
         mcpStreamableHttp();
     } else if (mcp.pathname.endsWith('/sse')) {
-        const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + url);
+        var pre_url = location.origin + location.pathname + "?url=";
+        const sse_WebSocket = new WebSocket('ws://localhost:' + ws_port + '/sse_ws?url=' + encodeURIComponent(location.href
+            .replace(pre_url, '')));
         window.sse_WebSocket = sse_WebSocket;
         sse_WebSocket.onopen = () => {
             showStep('request', url);
@@ -425,7 +456,8 @@ async function showResultAndCall(json) {
 //mcp streamable-http 调用过程
 async function mcpStreamableHttp() {
     // 这样设置，后台处理时候可以兼容llm设置mcp，该服务可以监测的
-    mcp_href = location.href;
+    var pre_url = location.origin + location.pathname + "?url=";
+    mcp_href = pre_url + encodeURIComponent(location.href.replace(pre_url, ''));
     console.log('initialize_json', initialize_json);
     var json = {};
     var res = await sendSseMessageAsync(initialize_json, function (headers, data) {
@@ -524,6 +556,10 @@ async function mcpSSE(json_in, event) {
         showStep('response', json_in);
         if (json_in['event'] == 'endpoint') {
             sse_session_url = (new URL(url)).origin + json_in['data'];
+            if (location.href.indexOf('++') > -1) {
+                sse_session_url = sse_session_url + "&" + project_name + "_envs=" + location.href.substr(location.href
+                    .indexOf('++'));
+            }
             console.log('initialize_json', initialize_json);
             await sendSseMessageAsync(initialize_json);
         } else {

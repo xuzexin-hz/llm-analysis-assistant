@@ -23,6 +23,7 @@ MCP is also an important part of LLM, so this project can also be used as an mcp
 6. **webSocket combined with asyncio use**
 7. **threading/queue use**
 8. **py program packaged into exe**
+9. **python -m llm_analysis_assistant**
 
 # 2. Project Background
 Before the arrival of true AGI, we will have to go through a long journey, during which we will have to face constant challenges. Whether ordinary people or professionals, their lives will be changed.
@@ -90,6 +91,15 @@ python server.py --is_mock=true --mock_string=你好啊 --looptime=1
 
 ```
 
+### Using uv (recommended)
+
+When using [`uv`](https://docs.astral.sh/uv/) no specific installation is needed. We will use 
+[`uvx`](https://docs.astral.sh/uv/guides/tools/) to directly run *llm-analysis-assistant*.
+
+```
+uvx llm_analysis_assistant
+```
+
 ### Using PIP(🌟)
 
 Alternatively you can install `llm-analysis-assistant` via pip:
@@ -130,6 +140,8 @@ Open the following address in the browser, the url is the sse service address
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/sse
 
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8002/sse?++user=xxx # ++user=xxx in the url means the HTTP request header user value is xxx
+
 Or use Cherry Studio to add the mcp service
 
 ![Cherry-Studio-mcp-sse.png](docs/imgs/Cherry-Studio-mcp-sse.png)
@@ -138,6 +150,8 @@ Or use Cherry Studio to add the mcp service
 Open the following address in the browser, the url is the streamableHttp service address
 
 http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp
+
+http://127.0.0.1:8000/mcp?url=http://127.0.0.1:8001/mcp?++user=xxx # ++user=xxx in the url means the HTTP request header user value is xxx
 
 Or use Cherry Studio to add the mcp service
 
