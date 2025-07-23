@@ -800,6 +800,26 @@ async function showItem2Html(type, item, sse) {
                 }
             }
         }
+        if (type == "tools" || type == "prompts" || type == "resourceTemplates") {
+            var call_item = {
+                'type': type,
+                'name': item.name,
+                'arguments': inputData
+            };
+            localStorage.getItem('calls') != null ? calls = JSON.parse(localStorage.getItem('calls')) :
+                calls = [];
+            if (calls.filter(param => param.type == type && param.name == item.name).length == 0) {
+                if (calls.length >= 100) {
+                    calls.shift();
+                }
+                calls.push(call_item);
+                localStorage.setItem('calls', JSON.stringify(calls));
+            } else {
+                calls.find(param => param.type == type && param.name == item.name).arguments =
+                    inputData;
+                localStorage.setItem('calls', JSON.stringify(calls));
+            }
+        }
         var item_timer_time = 0;
         var item_timer = setInterval(function () {
             item_timer_time++;
@@ -881,6 +901,13 @@ async function showItem2Html(type, item, sse) {
         }
         if (itemInput.getAttribute('placeholder') != null) {
             itemInput.setAttribute('title', itemInput.getAttribute('placeholder'));
+        }
+        localStorage.getItem('calls') != null ? calls = JSON.parse(localStorage.getItem('calls')) : calls = [];
+        if (calls.filter(param => param.type == type && param.name == item.name).length > 0) {
+            var arguments = calls.find(param => param.type == type && param.name == item.name).arguments;
+            if (arguments[name]) {
+                itemInput.value = arguments[name];
+            }
         }
         itemDiv.appendChild(itemInput);
     }
