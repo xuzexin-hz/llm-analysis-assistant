@@ -134,7 +134,7 @@ async def logs_stream_show(latest_time: float = 0):
             latest_time_out = max(log_files_with_times, key=lambda x: x[1])[1]
             return [log_file[0] for log_file in sorted_log_files], latest_time_out
         else:
-            return None, latest_time
+            return [], latest_time
 
     def is_valid_json(string):
         try:

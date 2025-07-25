@@ -185,10 +185,12 @@ def run_server(port):
 
 def main():
     try:
-        if __package__ is not None and __package__ != '':
-            os.environ["PROJECT_NAME"] = __package__
-            version = importlib.metadata.version(__package__)
-            os.environ["PROJECT_VERSION"] = 'v' + version
+        base_path = get_base_path()
+        if not os.path.exists(f"{base_path}/../../pyproject.toml"):
+            if __package__ is not None and __package__ != '':
+                os.environ["PROJECT_NAME"] = __package__
+                version = importlib.metadata.version(__package__)
+                os.environ["PROJECT_VERSION"] = 'v' + version
     except importlib.metadata.PackageNotFoundError:
         pass
     signal.signal(signal.SIGINT, graceful_exit)
