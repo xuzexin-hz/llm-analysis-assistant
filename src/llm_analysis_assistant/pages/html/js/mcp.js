@@ -648,42 +648,56 @@ function showStep(t, data) {
     } else {
         formattedJson = data;
     }
-    html = num + "、   ---" + t + ":" + '<pre class="jsonContainer" style="' + style + '">' + formattedJson + '</pre>' +
+    html = num + "、   ---" + t + ":" + '<pre class="jsonContainer" ondblclick="pre_dblclick(this)" style="' + style +
+        '">' + formattedJson + '</pre>' +
         '<br/>';
     document.querySelector('.mcp').innerHTML += html;
+}
+
+function pre_dblclick(obj) {
+    const range = document.createRange();
+    range.selectNodeContents(obj);
+    const selection = window.getSelection();
+    selection.removeAllRanges(); // 清除之前的选择
+    selection.addRange(range); // 选择当前内容
 }
 
 //显示获取结果
 async function showGetResult(type, data, sse) {
     var jsonData = data;
     console.log('showGetResult+' + type + ":", jsonData);
+    var sub_index = 0;
     if (type == 'tools') {
         if (jsonData.result.tools.length > 0) {
             mcp2html(type);
         }
         for (const tool of jsonData.result.tools) {
-            await showItem2Html(type, tool, sse);
+            sub_index++;
+            await showItem2Html(type, tool, sse, sub_index);
         }
     } else if (type == 'prompts') {
         if (jsonData.result.prompts.length > 0) {
             mcp2html(type);
         }
         for (const tool of jsonData.result.prompts) {
-            await showItem2Html(type, tool, sse);
+            sub_index++;
+            await showItem2Html(type, tool, sse, sub_index);
         }
     } else if (type == 'resources') {
         if (jsonData.result.resources.length > 0) {
             mcp2html(type);
         }
         for (const resource of jsonData.result.resources) {
-            await showItem2Html(type, resource, sse);
+            sub_index++;
+            await showItem2Html(type, resource, sse, sub_index);
         }
     } else if (type == 'resourceTemplates') {
         if (jsonData.result.resourceTemplates.length > 0) {
             mcp2html(type);
         }
         for (const resource of jsonData.result.resourceTemplates) {
-            await showItem2Html(type, resource, sse);
+            sub_index++;
+            await showItem2Html(type, resource, sse, sub_index);
         }
     }
 }
@@ -704,11 +718,11 @@ function mcp2html(type) {
 }
 
 //html方式显示单个
-async function showItem2Html(type, item, sse) {
+async function showItem2Html(type, item, sse, sub_index) {
     const containerTd = document.querySelector('.' + type);
     const itemDiv = document.createElement('div');
     const itemName = document.createElement('h2');
-    itemName.textContent = item.name;
+    itemName.textContent = '【' + sub_index + '】' + item.name;
     itemDiv.appendChild(itemName);
 
     const itemDescription = document.createElement('p');
@@ -733,6 +747,8 @@ async function showItem2Html(type, item, sse) {
             var value = input.value;
             if (input.getAttribute('ttype') == 'number') {
                 value = Number(input.value);
+            } else if (input.getAttribute('ttype') == 'boolean') {
+                value = Boolean(input.checked);
             }
             if (input.getAttribute('required') == 'true') {
                 if (value == '' || value == null) {
@@ -850,6 +866,7 @@ async function showItem2Html(type, item, sse) {
     itemDiv.appendChild(button);
     var propertie_index = 0;
     var properties = null;
+    var input_count = 0;
 
     function createPropertie(type, propertie) {
         const span = document.createElement('span');
@@ -883,9 +900,14 @@ async function showItem2Html(type, item, sse) {
             itemInput.value = propertie.uri;
             itemInput.disabled = true;
             propertiesType = 'text';
-        } else if (properties[propertie] != null && properties[propertie].type == 'number') {
+        } else if (properties[propertie] != null && (properties[propertie].type == 'number' || properties[propertie]
+                .type == 'integer')) {
             itemInput.type = 'number';
             propertiesType = 'number';
+        } else if (properties[propertie] != null && properties[propertie].type == 'boolean') {
+            itemInput.type = 'checkbox';
+            propertiesType = 'boolean';
+            itemInput.style.width = "27.6px";
         } else {
             itemInput.type = 'input';
             propertiesType = 'text';
@@ -906,10 +928,22 @@ async function showItem2Html(type, item, sse) {
         if (calls.filter(param => param.type == type && param.name == item.name).length > 0) {
             var arguments = calls.find(param => param.type == type && param.name == item.name).arguments;
             if (arguments[name]) {
-                itemInput.value = arguments[name];
+                if (propertiesType == 'boolean') {
+                    itemInput.checked = Boolean(arguments[name]);
+                } else {
+                    itemInput.value = arguments[name];
+                }
             }
         }
         itemDiv.appendChild(itemInput);
+        input_count++;
+        if (input_count % 4 == 0) {
+            let br = document.createElement('br');
+            itemDiv.appendChild(br);
+            let span = document.createElement('span');
+            span.style = 'display: inline-table;width: 38px;';
+            itemDiv.appendChild(span);
+        }
     }
 
     if (type == "tools") {
