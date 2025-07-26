@@ -9,7 +9,7 @@ from llm_analysis_assistant.utils.logs_utils import write_httplog, LogType, LOG_
 
 def my_json(data):
     # 使用正则表达式提取 event 和 data
-    pattern = r'event:\s*(?P<event>.*?)\s*data:\s*(?P<data>.*)'
+    pattern = r'event:\s*(?P<event>.*?)\s*(?:.*\n)*?data:\s*(?P<data>.*)'
     match = re.search(pattern, data)
     if match:
         # 提取 event 和 data
