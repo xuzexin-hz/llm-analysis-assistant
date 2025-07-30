@@ -142,6 +142,8 @@ def run_server(port):
         webbrowser.open(url)
     # 启动 Uvicorn 服务器
     base_path = get_base_path()
+    if not os.path.exists(base_path + 'logs'):
+        os.mkdir(base_path + 'logs')
     LOGGING_CONFIG = {
         "version": 1,
         "disable_existing_loggers": False,

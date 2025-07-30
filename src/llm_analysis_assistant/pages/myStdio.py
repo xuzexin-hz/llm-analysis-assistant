@@ -27,11 +27,19 @@ async def myStdio_msg(command, receive, send, num):
 
     executable_path = None
     if not os.path.exists(commands[0].strip("'\"")):
-        result = subprocess.run(['where', commands[0].replace('"', '').replace("'", "")], capture_output=True,
-                                text=True, check=True)
-        # 获取输出结果
-        executable_paths = result.stdout.splitlines()
-        if commands[0].lower() == 'python':
+        if sys.platform == "win32":
+            cmd = 'where'
+        else:
+            cmd = 'which'
+        executable_paths = []
+        try:
+            result = subprocess.run([cmd, commands[0].replace('"', '').replace("'", "")], capture_output=True,
+                                    text=True, check=True)
+            # 获取输出结果
+            executable_paths = result.stdout.splitlines()
+        except subprocess.CalledProcessError as e:
+            executable_paths.append(commands[0])
+        if commands[0].lower() == 'python' or commands[0].lower() == 'python3':
             # 解决用开发工具运行时候，它默认先选择开发工具中的python
             if len(executable_paths) > 1:
                 executable_paths.pop(0)
@@ -199,8 +207,12 @@ def writer_thread(stdin, input_queue, num):
 
 def get_executable_path(executable_path, executable_paths):
     for path in executable_paths:
-        if path.lower().endswith('.cmd') or path.lower().endswith('.bat') or path.lower().endswith(
-                '.exe') or path.lower().endswith('.ps1'):
-            executable_path = path
+        if sys.platform == "win32":
+            if path.lower().endswith('.cmd') or path.lower().endswith('.bat') or path.lower().endswith(
+                    '.exe') or path.lower().endswith('.ps1'):
+                executable_path = path
+                break
+        else:
+            executable_path = executable_paths[0]
             break
     return executable_path
